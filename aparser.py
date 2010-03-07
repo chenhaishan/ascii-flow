@@ -116,7 +116,7 @@ class BoxParser(simplehsm.SimpleHsm):
                     # create box figure
                     x, y = self.positions[0]
                     x2, y2 = self.positions[2]
-                    result = figure.Box(x, y, x2 - x, y2 - y, self.curves)
+                    result = figure.Box(x, y, x2 - x + 1, y2 - y + 1, self.curves)
                     self.reset()
                     break
                 elif self.IsInState(self.error):
