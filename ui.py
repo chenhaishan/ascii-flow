@@ -59,6 +59,35 @@ class UI:
             save_cb(canvas)
         button.connect("clicked", click)
         vbox.pack_start(button, expand=False)
+        b = gtk.HBox()
+        cb_nw = gtk.CheckButton()
+        b.pack_start(cb_nw, expand=False)
+        cb_ne = gtk.CheckButton()
+        b.pack_start(cb_ne, expand=False)
+        vbox.pack_start(b, expand=False)
+        b = gtk.HBox()
+        cb_sw = gtk.CheckButton()
+        b.pack_start(cb_sw, expand=False)
+        cb_se = gtk.CheckButton()
+        b.pack_start(cb_se, expand=False)
+        vbox.pack_start(b, expand=False)
+        def toggled(cb):
+            items = view.selected_items
+            if items:
+                for b in items:
+                    if cb == cb_nw:
+                        b.curves[0] = cb.get_active()
+                    if cb == cb_ne:
+                        b.curves[1] = cb.get_active()
+                    if cb == cb_se:
+                        b.curves[2] = cb.get_active()
+                    if cb == cb_sw:
+                        b.curves[3] = cb.get_active()
+                view.queue_draw_refresh()
+        cb_nw.connect("toggled", toggled)
+        cb_ne.connect("toggled", toggled)
+        cb_sw.connect("toggled", toggled)
+        cb_se.connect("toggled", toggled)
         hbox.pack_start(vbox, expand=False)
 
         # gaphas view
@@ -66,6 +95,20 @@ class UI:
         view.canvas = canvas
         view.painter = create_painter_chain()
         view.set_size_request(600, 400)
+        def selection_changed(view, items):
+            if items:
+                for b in items:
+                    cb_nw.set_active(b.curves[0])
+                    cb_ne.set_active(b.curves[1])
+                    cb_se.set_active(b.curves[2])
+                    cb_sw.set_active(b.curves[3])
+                    break;
+            else:
+                cb_nw.set_active(False)
+                cb_ne.set_active(False)
+                cb_se.set_active(False)
+                cb_sw.set_active(False)
+        view.connect("selection-changed", selection_changed)
         hbox.add(view)
 
         self.window.show_all()
