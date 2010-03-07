@@ -49,20 +49,24 @@ class UI:
         self.window.connect("destroy", self.destroy)
         self.window.set_title("ascii flow")
 
+        hbox = gtk.HBox()
+        self.window.add(hbox)
+
+        # side bar
         vbox = gtk.VBox()
-        self.window.add(vbox)
-
-        view = gaphas.GtkView()
-        view.canvas = canvas
-        view.painter = dit_painter(grid_x, grid_y)
-        vbox.add(view)
-        view.set_size_request(250, 200)
-
         button = gtk.Button("save")
         def click(widget):
             save_cb(canvas)
         button.connect("clicked", click)
-        vbox.add(button)
+        vbox.pack_start(button, expand=False)
+        hbox.pack_start(vbox, expand=False)
+
+        # gaphas view
+        view = gaphas.GtkView()
+        view.canvas = canvas
+        view.painter = dit_painter(grid_x, grid_y)
+        view.set_size_request(600, 400)
+        hbox.add(view)
 
         self.window.show_all()
 
