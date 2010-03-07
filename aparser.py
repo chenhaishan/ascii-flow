@@ -1,5 +1,6 @@
 import simplehsm
 import figure
+from asc import CORNER, VIRT, HORT, CORNER_CURVE_NW_SE, CORNER_CURVE_NE_SW
 
 #
 # State machine signals
@@ -42,14 +43,6 @@ SEARCH_WEST = 3
 SEARCH_NORTH = 4
 
 #
-# Char constants
-#
-
-BOX_CORNER = '+'
-BOX_VIRT = '|'
-BOX_HORT = '-'
-
-#
 # Helper functions
 #
 
@@ -90,19 +83,17 @@ def check_position_valid(ascii, pos):
 #  error
 class BoxParser(simplehsm.SimpleHsm):
 
-    search_dir = None
-    top_left_pos = None
-    top_right_pos = None
-    bottom_right_pos = None
-    bottom_left_pos = None
 
     ## Box parser state machine constructor
     #
     # Sets the initial state
     def __init__(self):
-        self.Initialize(self.main);
+        self.reset()
 
     def reset(self):
+        self.search_dir = None
+        self.positions = []
+        self.curves = []
         self.Initialize(self.main)
 
     def find_box(self, ascii, pos):
@@ -123,9 +114,9 @@ class BoxParser(simplehsm.SimpleHsm):
                 self.SignalCurrentState(ParseEvent(SIG_CHAR, pos, char))
                 if self.IsInState(self.finished):
                     # create box figure
-                    x, y = self.top_left_pos
-                    x2, y2 = self.bottom_right_pos
-                    result = figure.Box(x, y, x2 - x, y2 - y)
+                    x, y = self.positions[0]
+                    x2, y2 = self.positions[2]
+                    result = figure.Box(x, y, x2 - x, y2 - y, self.curves)
                     self.reset()
                     break
                 elif self.IsInState(self.error):
@@ -163,7 +154,7 @@ class BoxParser(simplehsm.SimpleHsm):
     # @return None if the signal is handled, otherwise the parent state (main())
     #
     def searching(self, state_event):
-        global SIG_CHAR, BOX_CORNER
+        global SIG_CHAR
         if (state_event.sig == simplehsm.SIG_ENTRY):
             #print "  searching: entering state"
             return None
@@ -172,8 +163,9 @@ class BoxParser(simplehsm.SimpleHsm):
             return None
         elif (state_event.sig == SIG_CHAR):
             #print "  searching: CHAR signal!"
-            if state_event.char == BOX_CORNER:
-                self.top_left_pos = state_event.pos
+            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NW_SE:
+                self.positions.append(state_event.pos)
+                self.curves.append(state_event.char == CORNER_CURVE_NW_SE)
                 self.search_dir = SEARCH_EAST
                 self.TransitionState(self.top_left)
             return None;
@@ -188,7 +180,7 @@ class BoxParser(simplehsm.SimpleHsm):
     # @return None if the signal is handled, otherwise the parent state (main())
     #
     def top_left(self, state_event):
-        global SIG_CHAR, BOX_CORNER, BOX_HORT
+        global SIG_CHAR
         if (state_event.sig == simplehsm.SIG_ENTRY):
             #print "  top_left: entering state"
             return None
@@ -197,11 +189,12 @@ class BoxParser(simplehsm.SimpleHsm):
             return None
         elif (state_event.sig == SIG_CHAR):
             #print "  top_left: CHAR signal!"
-            if state_event.char == BOX_CORNER:
-                self.top_right_pos = state_event.pos
+            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NE_SW:
+                self.positions.append(state_event.pos)
+                self.curves.append(state_event.char == CORNER_CURVE_NE_SW)
                 self.search_dir = SEARCH_SOUTH
                 self.TransitionState(self.top_right)
-            elif state_event.char == BOX_HORT:
+            elif state_event.char == HORT:
                 # keep going
                 pass
             else:
@@ -218,7 +211,7 @@ class BoxParser(simplehsm.SimpleHsm):
     # @return None if the signal is handled, otherwise the parent state (main())
     #
     def top_right(self, state_event):
-        global SIG_CHAR, BOX_CORNER, BOX_VIRT
+        global SIG_CHAR
         if (state_event.sig == simplehsm.SIG_ENTRY):
             #print "  top_right: entering state"
             return None
@@ -227,11 +220,12 @@ class BoxParser(simplehsm.SimpleHsm):
             return None
         elif (state_event.sig == SIG_CHAR):
             #print "  top_right: CHAR signal!"
-            if state_event.char == BOX_CORNER:
-                self.bottom_right_pos = state_event.pos
+            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NW_SE:
+                self.positions.append(state_event.pos)
+                self.curves.append(state_event.char == CORNER_CURVE_NW_SE)
                 self.search_dir = SEARCH_WEST
                 self.TransitionState(self.bottom_right)
-            elif state_event.char == BOX_VIRT:
+            elif state_event.char == VIRT:
                 # keep going
                 pass
             else:
@@ -248,7 +242,7 @@ class BoxParser(simplehsm.SimpleHsm):
     # @return None if the signal is handled, otherwise the parent state (main())
     #
     def bottom_right(self, state_event):
-        global SIG_CHAR, BOX_CORNER, BOX_HORT
+        global SIG_CHAR
         if (state_event.sig == simplehsm.SIG_ENTRY):
             #print "  bottom_right: entering state"
             return None
@@ -257,11 +251,12 @@ class BoxParser(simplehsm.SimpleHsm):
             return None
         elif (state_event.sig == SIG_CHAR):
             #print "  bottom_right: CHAR signal!"
-            if state_event.char == BOX_CORNER:
-                self.bottom_left_pos = state_event.pos
+            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NE_SW:
+                self.positions.append(state_event.pos)
+                self.curves.append(state_event.char == CORNER_CURVE_NE_SW)
                 self.search_dir = SEARCH_NORTH
                 self.TransitionState(self.bottom_left)
-            elif state_event.char == BOX_HORT:
+            elif state_event.char == HORT:
                 # keep going
                 pass
             else:
@@ -278,7 +273,7 @@ class BoxParser(simplehsm.SimpleHsm):
     # @return None if the signal is handled, otherwise the parent state (main())
     #
     def bottom_left(self, state_event):
-        global SIG_CHAR, BOX_CORNER, BOX_VIRT
+        global SIG_CHAR
         if (state_event.sig == simplehsm.SIG_ENTRY):
             #print "  bottom_left: entering state"
             return None
@@ -287,9 +282,9 @@ class BoxParser(simplehsm.SimpleHsm):
             return None
         elif (state_event.sig == SIG_CHAR):
             #print "  bottom_left: CHAR signal!"
-            if state_event.char == BOX_CORNER:
+            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NW_SE:
                 self.TransitionState(self.finished)
-            elif state_event.char == BOX_VIRT:
+            elif state_event.char == VIRT:
                 # keep going
                 pass
             else:

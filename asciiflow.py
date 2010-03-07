@@ -37,7 +37,7 @@ def setup_canvas(figures, char_x, char_y):
     canvas = gaphas.Canvas()
 
     for f in figures:
-        b = gaphs.Box()
+        b = gaphs.Box(curves=f.curves)
         b.matrix = (1.0, 0.0, 0.0, 1.0, f.x * char_x, f.y * char_y)
         canvas.add(b)
         b.width = f.width * char_x

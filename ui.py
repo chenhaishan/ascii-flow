@@ -23,14 +23,14 @@ class GridPainter(gaphas.painter.Painter):
             cr.set_source_rgb(0.5, 0.5, 0.5)
             cr.set_line_width(1.0)
             # draw grid points
-            for x in range(x1, x2, self.grid_x):
-                for y in range(y1, y2, self.grid_y):
+            for x in range(int(x1), int(x2), self.grid_x):
+                for y in range(int(y1), int(y2), self.grid_y):
                     cr.move_to(x + 0.5, y)
                     cr.line_to(x + 0.5, y + 1.0)
             cr.stroke()
             cr.restore()
 
-def dit_painter(grid_x, grid_y):
+def create_painter_chain(grid_x, grid_y):
     chain = gaphas.painter.PainterChain()
     chain.append(GridPainter(grid_x, grid_y))
     chain.append(gaphas.painter.ItemPainter())
@@ -64,7 +64,7 @@ class UI:
         # gaphas view
         view = gaphas.GtkView()
         view.canvas = canvas
-        view.painter = dit_painter(grid_x, grid_y)
+        view.painter = create_painter_chain(grid_x, grid_y)
         view.set_size_request(600, 400)
         hbox.add(view)
 
