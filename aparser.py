@@ -1,61 +1,19 @@
-import simplehsm
 import figure
-from asc import CORNER, VIRT, HORT, CORNER_CURVE_NW_SE, CORNER_CURVE_NE_SW
-
-#
-# State machine signals
-#
-
-## process an ascii character
-SIG_CHAR = simplehsm.SIG_USER
-## we have reached the end of the ascii file
-SIG_EOF = simplehsm.SIG_USER + 1
-
-#
-# Parser State Machine event
-#
-
-## Parser state machine events
-class ParseEvent(simplehsm.StateEvent):
-
-    ## The position of the character 
-    pos = None
-
-    ## The ascii character to process
-    char = None
-
-    ## Parser state machine event constructor
-    # @param sig The signal associated with this event
-    # @param pos The position of the ascii character
-    # @param char The ascii character to process
-    def __init__(self, sig, pos, char):
-        simplehsm.StateEvent.__init__(self, sig)
-        self.pos = pos
-        self.char = char
-
-#
-# Search direction constants
-#
-
-SEARCH_EAST = 1
-SEARCH_SOUTH = 2
-SEARCH_WEST = 3
-SEARCH_NORTH = 4
+from asc import *
 
 #
 # Helper functions
 #
 
 def increment_position(pos, dir):
-    global SEARCH_EAST, SEARCH_SOUTH, SEARCH_WEST, SEARCH_NORTH
     x, y = pos
-    if dir == SEARCH_EAST:
+    if dir == DIR_EAST:
         x += 1
-    elif dir == SEARCH_SOUTH:
+    elif dir == DIR_SOUTH:
         y += 1
-    elif dir == SEARCH_WEST:
+    elif dir == DIR_WEST:
         x -= 1
-    elif dir == SEARCH_NORTH:
+    elif dir == DIR_NORTH:
         y -= 1
     return (x, y)
 
@@ -69,263 +27,138 @@ def check_position_valid(ascii, pos):
         return False
     return True
 
-##
-# Box parser state machine
-#
-# state hierachy
-#
-# main
-#  searching
-#  top_left
-#  top_right
-#  bottom_right
-#  finished
-#  error
-class BoxParser(simplehsm.SimpleHsm):
-
-
-    ## Box parser state machine constructor
-    #
-    # Sets the initial state
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.search_dir = None
-        self.positions = []
-        self.curves = []
-        self.Initialize(self.main)
-
-    def find_box(self, ascii, pos):
-        result = None
+def get_next_char(ascii, pos, dir):
+    pos = increment_position(pos, dir)
+    if check_position_valid(ascii, pos):
         x, y = pos
-        # check if current position is the start of a box
-        line = ascii[y]
-        char = line[x]
-        self.SignalCurrentState(ParseEvent(SIG_CHAR, pos, char))
-        if not self.IsInState(self.searching):
-            # complete box search
-            while True:
-                # increment position
-                pos = x, y = increment_position(pos, self.search_dir)
-                if not check_position_valid(ascii, pos):
-                    return result
-                char = ascii[y][x]
-                self.SignalCurrentState(ParseEvent(SIG_CHAR, pos, char))
-                if self.IsInState(self.finished):
-                    # create box figure
-                    x, y = self.positions[0]
-                    x2, y2 = self.positions[2]
-                    result = figure.Box(x, y, x2 - x + 1, y2 - y + 1, self.curves)
-                    self.reset()
-                    break
-                elif self.IsInState(self.error):
-                    self.reset()
-                    break
-                else:
-                    # continue
-                    pass
-        return result                
+        char = ascii[y][x]
+        return pos, char
+    return pos, None
 
-    ##
-    # The top level main state
-    # 
-    # @param state_event The signal to send to this state
-    # @return Aways returns None indicating that this is the top level state
-    #
-    def main(self, state_event):
-        if (state_event.sig == simplehsm.SIG_ENTRY):
-            #print "main: entering state"
-            return None
-        elif (state_event.sig == simplehsm.SIG_INIT):
-            self.InitTransitionState(self.searching)
-            return None
-        elif (state_event.sig == simplehsm.SIG_EXIT):
-            #print "main: exiting state"
-            return None
-        return None
+def is_corner(char):
+    return char == CORNER or char == CORNER_CURVE_NW_SE or char == CORNER_CURVE_NE_SW
 
-    ##
-    # The searching state
-    #
-    # At this stage we are looking for the top left character of a box figure
-    # 
-    # @param state_event The signal to send to this state
-    # @return None if the signal is handled, otherwise the parent state (main())
-    #
-    def searching(self, state_event):
-        global SIG_CHAR
-        if (state_event.sig == simplehsm.SIG_ENTRY):
-            #print "  searching: entering state"
-            return None
-        elif (state_event.sig == simplehsm.SIG_EXIT):
-            #print "  searching: exiting state"
-            return None
-        elif (state_event.sig == SIG_CHAR):
-            #print "  searching: CHAR signal!"
-            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NW_SE:
-                self.positions.append(state_event.pos)
-                self.curves.append(state_event.char == CORNER_CURVE_NW_SE)
-                self.search_dir = SEARCH_EAST
-                self.TransitionState(self.top_left)
-            return None;
-        return self.main;
+def is_curved_corner(char):
+    return char == CORNER_CURVE_NE_SW or char == CORNER_CURVE_NW_SE
 
-    ##
-    # The top_left state
-    #
-    # Now we are looking for the top right corner of the box
-    # 
-    # @param state_event The signal to send to this state
-    # @return None if the signal is handled, otherwise the parent state (main())
-    #
-    def top_left(self, state_event):
-        global SIG_CHAR
-        if (state_event.sig == simplehsm.SIG_ENTRY):
-            #print "  top_left: entering state"
-            return None
-        elif (state_event.sig == simplehsm.SIG_EXIT):
-            #print "  top_left: exiting state"
-            return None
-        elif (state_event.sig == SIG_CHAR):
-            #print "  top_left: CHAR signal!"
-            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NE_SW:
-                self.positions.append(state_event.pos)
-                self.curves.append(state_event.char == CORNER_CURVE_NE_SW)
-                self.search_dir = SEARCH_SOUTH
-                self.TransitionState(self.top_right)
-            elif state_event.char == HORT:
-                # keep going
-                pass
-            else:
-                self.TransitionState(self.error)
-            return None;
-        return self.main;
+#
+# Recursive search methods
+#
 
-    ##
-    # The top_right state
-    #
-    # Now we are looking for the bottom right corner of the box
-    # 
-    # @param state_event The signal to send to this state
-    # @return None if the signal is handled, otherwise the parent state (main())
-    #
-    def top_right(self, state_event):
-        global SIG_CHAR
-        if (state_event.sig == simplehsm.SIG_ENTRY):
-            #print "  top_right: entering state"
-            return None
-        elif (state_event.sig == simplehsm.SIG_EXIT):
-            #print "  top_right: exiting state"
-            return None
-        elif (state_event.sig == SIG_CHAR):
-            #print "  top_right: CHAR signal!"
-            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NW_SE:
-                self.positions.append(state_event.pos)
-                self.curves.append(state_event.char == CORNER_CURVE_NW_SE)
-                self.search_dir = SEARCH_WEST
-                self.TransitionState(self.bottom_right)
-            elif state_event.char == VIRT:
-                # keep going
-                pass
-            else:
-                self.TransitionState(self.error)            
-            return None;
-        return self.main;    
+def another_corner(ascii, pos, char, positions, curves, prev_dir):
+    positions.append(pos)
+    curves.append(is_curved_corner(char))
+    # check if we have finished the box
+    pos_start, pos_end = positions[0], positions[-1:][0]
+    if pos_start[0] == pos_end[0] and pos_start[1] == pos_end[1]:
+        return [positions[:-1], curves[:-1]]
+    # try relevant directions
+    directions = []
+    if prev_dir == DIR_EAST or prev_dir == DIR_WEST:
+        directions = [DIR_NORTH, DIR_SOUTH]
+    else:
+        directions = [DIR_EAST, DIR_WEST]
+    for dir in directions:
+        new_pos, char = get_next_char(ascii, pos, dir)
+        if char == VIRT or char == HORT:
+           return travel(positions, curves, dir, ascii, new_pos, char)
+    return None
 
-    ##
-    # The bottom_right state
-    #
-    # Now we are looking for the bottom left corner of the box
-    # 
-    # @param state_event The signal to send to this state
-    # @return None if the signal is handled, otherwise the parent state (main())
-    #
-    def bottom_right(self, state_event):
-        global SIG_CHAR
-        if (state_event.sig == simplehsm.SIG_ENTRY):
-            #print "  bottom_right: entering state"
-            return None
-        elif (state_event.sig == simplehsm.SIG_EXIT):
-            #print "  bottom_right: exiting state"
-            return None
-        elif (state_event.sig == SIG_CHAR):
-            #print "  bottom_right: CHAR signal!"
-            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NE_SW:
-                self.positions.append(state_event.pos)
-                self.curves.append(state_event.char == CORNER_CURVE_NE_SW)
-                self.search_dir = SEARCH_NORTH
-                self.TransitionState(self.bottom_left)
-            elif state_event.char == HORT:
-                # keep going
-                pass
-            else:
-                self.TransitionState(self.error)    
-            return None;
-        return self.main;        
+def travel(positions, curves, dir, ascii, pos, char):
+    new_pos = pos
+    if (dir == DIR_EAST or dir == DIR_WEST) and char == HORT:
+        while char == HORT:
+            new_pos, char = get_next_char(ascii, new_pos, dir)
+        if is_corner(char):
+            return another_corner(ascii, new_pos, char, positions, curves, dir)
+    elif (dir == DIR_NORTH or dir == DIR_SOUTH) and char == VIRT:
+        while char == VIRT:
+            new_pos, char = get_next_char(ascii, new_pos, dir)
+        if is_corner(char):
+            return another_corner(ascii, new_pos, char, positions, curves, dir)
+    return None
 
-    ##
-    # The bottom_left state
-    #
-    # Now we are want to hook up to the box origin
-    # 
-    # @param state_event The signal to send to this state
-    # @return None if the signal is handled, otherwise the parent state (main())
-    #
-    def bottom_left(self, state_event):
-        global SIG_CHAR
-        if (state_event.sig == simplehsm.SIG_ENTRY):
-            #print "  bottom_left: entering state"
-            return None
-        elif (state_event.sig == simplehsm.SIG_EXIT):
-            #print "  bottom_left: exiting state"
-            return None
-        elif (state_event.sig == SIG_CHAR):
-            #print "  bottom_left: CHAR signal!"
-            if state_event.char == CORNER or state_event.char == CORNER_CURVE_NW_SE:
-                self.TransitionState(self.finished)
-            elif state_event.char == VIRT:
-                # keep going
-                pass
-            else:
-                self.TransitionState(self.error)                
-            return None;
-        return self.main;            
+def start_corner(ascii, pos, char):
+    boxes = []
+    # try all directions
+    for dir in [DIR_EAST, DIR_SOUTH, DIR_WEST, DIR_NORTH]:
+        positions = [pos]
+        curves = [is_curved_corner(char)]
+        new_pos, new_char = get_next_char(ascii, pos, dir)
+        if new_char:
+            box = travel(positions, curves, dir, ascii, new_pos, new_char)
+            if box:
+                boxes.append(box)
+    # reorient
+    orient_boxes(boxes)
+    return boxes
 
-    ##
-    # The finshed state
-    #
-    # @param state_event The signal to send to this state
-    # @return The parent state (main())
-    #
-    def finished(self, state_event):
-        if (state_event.sig == simplehsm.SIG_ENTRY):
-            #print "  finished: entering state"
-            return None
-        return self.main
+#
+# box orientation
+#
 
-    ##
-    # The error state
-    #
-    # @param state_event The signal to send to this state
-    # @return The parent state (main())
-    #
-    def error(self, state_event):
-        if (state_event.sig == simplehsm.SIG_ENTRY):
-            #print "  error: entering state"
-            return None
-        return self.main
+def orient_to_top_left(box):
+    # find top left position
+    topleft_pos = box[0][0]
+    for pos in box[0]:
+        if pos[1] < topleft_pos[1]:
+            topleft_pos = pos
+        elif pos[0] < topleft_pos[0]:
+            topleft_pos = pos
+    # orient to top left
+    i = box[0].index(topleft_pos)
+    box[0] = box[0][i:] + box[0][:i]
+    box[1] = box[1][i:] + box[1][:i]
+
+def orient_boxes(boxes):
+    for i in range(len(boxes)):
+        orient_to_top_left(boxes[i])
+
+def find_boxes(ascii, pos):
+    boxes = []
+    x, y = pos
+    line = ascii[y]
+    char = line[x]
+    # check if current position is the start of a box
+    if is_corner(char):
+        boxes = start_corner(ascii, pos, char)
+    return boxes
+
+#
+# box duplicate removal
+#
+        
+def remove_dupes(boxes):
+    for i in range(len(boxes)-1, 0, -1):
+        box = boxes[i]
+        for j in range(i):
+            box_compare = boxes[j]
+            remove = True
+            for pos in box[0]:
+                if not pos in box_compare[0]:
+                    remove = False
+                    break;
+            if remove:
+                #del boxes[i]
+                boxes.remove(box)
+                break
     
-## Search for figures using a left to right, top to bottom method
+## Search for boxes using a left to right, top to bottom method
 #  @param ascii A list of text lines 
-#  @return A list of figures
+#  @return A list of boxes
 def parse(ascii):
-    result = []
-    bparse = BoxParser()
+    boxes = []
     for i in range(len(ascii)):
         line = ascii[i]
         for j in range(len(line)):
-            box = bparse.find_box(ascii, (j, i))
-            if box:
-                result.append(box)
-    return result
+            new_boxes = find_boxes(ascii, (j, i))
+            for box in new_boxes:
+                boxes.append(box)
+
+    # remove dupes
+    remove_dupes(boxes)
+    # create figures
+    figures = []
+    for box in boxes:
+        figures.append(figure.Box(box[0], box[1]))
+    return figures
