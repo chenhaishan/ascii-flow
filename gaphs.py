@@ -1,11 +1,14 @@
 from gaphas.item import Element, Item, NW, NE,SW, SE
+from gaphas.connector import Handle
+from gaphas.solver import VERY_STRONG
 import math
 
 from asc import *
 
-class Box(Element):
+class Box(Item):
 
     def __init__(self, box, canvas):
+        super(Box, self).__init__()
         self.positions = box.positions
         self.curves = box.curves
         # calc x, y, width & height
@@ -26,29 +29,92 @@ class Box(Element):
         y *= CHAR_Y
         width *= CHAR_X
         height *= CHAR_Y
-        # initilise x, y, width & height
-        super(Box, self).__init__(width, height)
+        # initilise x, y
         self.matrix = (1.0, 0.0, 0.0, 1.0, x, y)
-        canvas.add(self)
-        self.width = width
-        self.height = height
         # normalise points
         pts = []
         for pos in self.positions:
-            px = (pos[0] * CHAR_X - x) / float(width)
-            py = (pos[1] * CHAR_Y - y) / float(height)
+            px = pos[0] * CHAR_X - x
+            py = pos[1] * CHAR_Y - y
             pts.append((px, py))
         self.pts = pts
+        # add handles
+        self._handles = []
+        for pt in pts:
+            pt = self.renderise(pt)
+            h = Handle(strength=VERY_STRONG)
+            h.pos.x = pt[0]
+            h.pos.y = pt[1]
+            self._handles.append(h)
+        # add constraints
+        l = len(self._handles)
+        for i in range(l):
+            h = self._handles[i]
+            if i < l - 1:
+                next_h = self._handles[i+1]
+            else:
+                next_h = self._handles[0]
+            if next_h.pos.x > h.pos.x or next_h.pos.x < h.pos.x:
+                self.constraint(horizontal=(h.pos, next_h.pos))
+            else:
+                self.constraint(vertical=(h.pos, next_h.pos))
+        # add to canvas
+        canvas.add(self)
 
-    def denormalise(self, pt):
-        return pt[0] * self.width + CHAR_X / 2.0, pt[1] * self.height + CHAR_Y / 2.0
+    def normalize(self):
+        updated = False
+        # update figure points
+        for i in range(len(self.pts)):
+            pt = self.pts[i]
+            pt = self.renderise(pt)
+            h = self._handles[i]
+            if pt[0] != h.pos.x or pt[1] != h.pos.y:
+                self.pts[i] = h.pos.x - CHAR_X / 2.0, h.pos.y - CHAR_Y / 2.0
+                updated = True
+        if updated:
+            # find x/y offsets
+            x, y = self.pts[0]
+            for pt in self.pts:
+                if pt[0] < x:
+                    x = pt[0]
+                if pt[1] < y:
+                    y = pt[1]
+            # apply any offsets
+            if x or y:
+                print x, y
+                self.matrix.translate(x, y)
+                for i in range(len(self.pts)):
+                    self.pts[i] = self.pts[i][0] - x, self.pts[i][1] - y
+                    self._handles[i].pos.x -= x
+                    self._handles[i].pos.y -= y
+        return updated
+
+    def _get_width(self):
+        x2 = self.pts[0][0]
+        for pt in self.pts:
+            if pt[0] > x2:
+                x2 = pt[0]
+        return x2 + CHAR_X
+
+    width = property(_get_width)            
+
+    def _get_height(self):
+        y2 = self.pts[0][1]
+        for pt in self.pts:
+            if pt[1] > y2:
+                y2 = pt[1]
+        return y2 + CHAR_Y
+
+    height = property(_get_height)
+
+    def renderise(self, pt):
+        return pt[0] + CHAR_X / 2.0, pt[1] + CHAR_Y / 2.0
 
     def draw(self, context):
         cr = context.cairo
         # draw fill area
-        nw = self._handles[NW]
         cr.set_source_rgba(0, 0, 0.8, 0.07)
-        cr.rectangle(nw.x, nw.y, self.width, self.height)
+        cr.rectangle(0, 0, self.width, self.height)
         cr.fill()
         # create path
         angle = 90.0  * (math.pi/180.0)
@@ -57,7 +123,7 @@ class Box(Element):
         c = self.curves
         l = len(pts)
         for i in range(l):
-            pt = self.denormalise(pts[i])
+            pt = self.renderise(pts[i])
             curve = c[i]
             xoffset = 0
             yoffset = 0
@@ -66,32 +132,28 @@ class Box(Element):
             a1 = 0
             a2 = 0
             if i < l - 1:
-                next_pt = self.denormalise(pts[i+1])
+                next_pt = self.renderise(pts[i+1])
                 next_curve = c[i+1]
             else:
-                next_pt = self.denormalise(pts[0])
+                next_pt = self.renderise(pts[0])
                 next_curve = c[0]
             # get direction
             if next_pt[0] > pt[0]:
-                dir = DIR_EAST
                 if curve:
                     xoffset = radius
                 if next_curve:
                     x2offset = -radius
             elif next_pt[0] < pt[0]:
-                dir = DIR_WEST
                 if curve:
                     xoffset = -radius
                 if next_curve:
                     x2offset = radius
             elif next_pt[1] > pt[1]:
-                dir = DIR_SOUTH
                 if curve:
                     yoffset = radius
                 if next_curve:
                     y2offset = -radius
             elif next_pt[1] < pt[1]:
-                dir = DIR_NORTH
                 if curve:
                     yoffset = -radius
                 if next_curve:
