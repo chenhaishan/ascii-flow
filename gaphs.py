@@ -81,7 +81,6 @@ class Box(Item):
                     y = pt[1]
             # apply any offsets
             if x or y:
-                print x, y
                 self.matrix.translate(x, y)
                 for i in range(len(self.pts)):
                     self.pts[i] = self.pts[i][0] - x, self.pts[i][1] - y
