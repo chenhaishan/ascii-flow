@@ -45,49 +45,80 @@ def snap_to_grid(x, y, offsetx=0, offsety=0):
         y -= dy
     return x, y
 
+@gaphas.aspect.InMotion.when_type(gaphs.Box)
+class SnapItemInMotion(object):
 
-class ItemTool(gaphas.tool.ItemTool):
+    def __init__(self, item, view):
+        self.item = item
+        self.view = view
+        self.last_x, self.last_y = None, None
 
-    def on_motion_notify(self, event):
+    def start_move(self, pos):
+        self.last_x, self.last_y = snap_to_grid(pos[0], pos[1])
+
+    def move(self, pos):
         """
-        Normally do nothing.
-        If a button is pressed move the items around (with snap to grid).
+        Move the item. x and y are in view coordinates.
         """
-        if event.state & gtk.gdk.BUTTON_PRESS_MASK:
-
-            pt = snap_to_grid(event.x, event.y)
-
-            if not self._movable_items:
-                self._movable_items = set(self.movable_items())
-                for inmotion in self._movable_items:
-                    inmotion.start_move(pt)
-
-            for inmotion in self._movable_items:
-                inmotion.move(pt)
-
-            return True
-
-class HandleTool(gaphas.tool.HandleTool):
-
-    def on_motion_notify(self, event):
-        """
-        Handle motion events. If a handle is grabbed: drag it around,
-        else, if the pointer is over a handle, make the owning item the
-        hovered-item.
-        """
+        item = self.item
         view = self.view
-        if self.grabbed_handle and event.state & gtk.gdk.BUTTON_PRESS_MASK:
-            canvas = view.canvas
-            item = self.grabbed_item
-            handle = self.grabbed_handle
-            pos = snap_to_grid(event.x, event.y, CHAR_X / 2, CHAR_Y / 2)
+        v2i = view.get_matrix_v2i(item)
 
-            if not self.motion_handle:
-                self.motion_handle = gaphas.tool.HandleInMotion(item, handle, self.view)
-                self.motion_handle.start_move(pos)
-            self.motion_handle.move(pos)
+        pos = snap_to_grid(pos[0], pos[1], 0, 0)
 
-            return True        
+        x, y = pos
+        dx, dy = x - self.last_x, y - self.last_y
+        dx, dy = v2i.transform_distance(dx, dy)
+        self.last_x, self.last_y = x, y
+
+        item.matrix.translate(dx, dy)
+        item.canvas.request_matrix_update(item)
+
+    def stop_move(self):
+        pass
+
+@gaphas.aspect.HandleInMotion.when_type(gaphs.Box)
+class SnapHandleInMotion(object):
+    GLUE_DISTANCE = 10
+
+    def __init__(self, item, handle, view):
+        self.item = item
+        self.handle = handle
+        self.view = view
+        self.last_x, self.last_y = None, None
+
+    def start_move(self, pos):
+        self.last_x, self.last_y = snap_to_grid(pos[0], pos[1], CHAR_X / 2, CHAR_Y / 2)
+        canvas = self.item.canvas
+
+        cinfo = canvas.get_connection(self.handle)
+        if cinfo:
+            canvas.solver.remove_constraint(cinfo.constraint)
+
+    def move(self, pos):
+        item = self.item
+        handle = self.handle
+        view = self.view
+
+        pos = snap_to_grid(pos[0], pos[1], CHAR_X / 2, CHAR_Y / 2)
+
+        v2i = view.get_matrix_v2i(item)
+
+        x, y = v2i.transform_point(*pos)
+
+        self.handle.pos = (x, y)
+
+        sink = self.glue(pos)
+
+        # do not request matrix update as matrix recalculation will be
+        # performed due to item normalization if required
+        item.request_update(matrix=False)
+
+    def stop_move(self):
+        pass
+
+    def glue(self, pos, distance=GLUE_DISTANCE):
+        return None
 
 def create_painter_chain():
     chain = gaphas.painter.PainterChain()
@@ -101,8 +132,8 @@ def create_painter_chain():
 def create_tool_chain():
     chain = gaphas.tool.ToolChain(). \
         append(gaphas.tool.HoverTool()). \
-        append(HandleTool()). \
-        append(ItemTool()). \
+        append(gaphas.tool.HandleTool()). \
+        append(gaphas.tool.ItemTool()). \
         append(gaphas.tool.RubberbandTool())
     return chain
 
