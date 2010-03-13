@@ -152,11 +152,13 @@ class UI:
 
         # side bar
         vbox = gtk.VBox()
+        # save button
         button = gtk.Button("save")
         def click(widget):
             save_cb(canvas)
         button.connect("clicked", click)
         vbox.pack_start(button, expand=False)
+        # corner checkboxes
         b = gtk.HBox()
         cb_nw = gtk.CheckButton()
         b.pack_start(cb_nw, expand=False)
@@ -169,7 +171,7 @@ class UI:
         cb_se = gtk.CheckButton()
         b.pack_start(cb_se, expand=False)
         vbox.pack_start(b, expand=False)
-        def toggled(cb):
+        def cb_corner_toggled(cb):
             items = view.selected_items
             if items:
                 for b in items:
@@ -182,10 +184,20 @@ class UI:
                     if cb == cb_sw:
                         b.curves[3] = cb.get_active()
                 view.queue_draw_refresh()
-        cb_nw.connect("toggled", toggled)
-        cb_ne.connect("toggled", toggled)
-        cb_sw.connect("toggled", toggled)
-        cb_se.connect("toggled", toggled)
+        cb_nw.connect("toggled", cb_corner_toggled)
+        cb_ne.connect("toggled", cb_corner_toggled)
+        cb_sw.connect("toggled", cb_corner_toggled)
+        cb_se.connect("toggled", cb_corner_toggled)
+        # dashed checkbox
+        cb_dashed = gtk.CheckButton()
+        vbox.pack_start(cb_dashed, expand=False)
+        def cb_dashed_toggled(cb):
+            items = view.selected_items
+            if items:
+                for b in items:
+                    b.dashed = cb.get_active()
+                view.queue_draw_refresh()
+        cb_dashed.connect("toggled", cb_dashed_toggled)
         hbox.pack_start(vbox, expand=False)
 
         # gaphas view
@@ -201,12 +213,14 @@ class UI:
                     cb_ne.set_active(b.curves[1])
                     cb_se.set_active(b.curves[2])
                     cb_sw.set_active(b.curves[3])
+                    cb_dashed.set_active(b.dashed)
                     break;
             else:
                 cb_nw.set_active(False)
                 cb_ne.set_active(False)
                 cb_se.set_active(False)
                 cb_sw.set_active(False)
+                cb_dashed.set_active(False)
         view.connect("selection-changed", selection_changed)
         hbox.add(view)
 

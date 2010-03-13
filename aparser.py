@@ -41,17 +41,26 @@ def is_corner(char):
 def is_curved_corner(char):
     return char == CORNER_CURVE_NE_SW or char == CORNER_CURVE_NW_SE
 
+def is_hort(char):
+    return char == HORT or char == HORT_DASH
+
+def is_virt(char):
+    return char == VIRT or char == VIRT_DASH
+
+def is_dashed(char):
+    return char == HORT_DASH or char == VIRT_DASH
+
 #
 # Recursive search methods
 #
 
-def another_corner(ascii, pos, char, positions, curves, prev_dir):
+def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed):
     positions.append(pos)
     curves.append(is_curved_corner(char))
     # check if we have finished the box
     pos_start, pos_end = positions[0], positions[-1:][0]
     if pos_start[0] == pos_end[0] and pos_start[1] == pos_end[1]:
-        return [positions[:-1], curves[:-1]]
+        return [positions[:-1], curves[:-1], dashed]
     # try relevant directions
     directions = []
     if prev_dir == DIR_EAST or prev_dir == DIR_WEST:
@@ -60,22 +69,24 @@ def another_corner(ascii, pos, char, positions, curves, prev_dir):
         directions = [DIR_EAST, DIR_WEST]
     for dir in directions:
         new_pos, char = get_next_char(ascii, pos, dir)
-        if char == VIRT or char == HORT:
-           return travel(positions, curves, dir, ascii, new_pos, char)
+        if is_virt(char) or is_hort(char):
+           return travel(positions, curves, dir, ascii, new_pos, char, dashed)
     return None
 
-def travel(positions, curves, dir, ascii, pos, char):
+def travel(positions, curves, dir, ascii, pos, char, dashed):
     new_pos = pos
-    if (dir == DIR_EAST or dir == DIR_WEST) and char == HORT:
-        while char == HORT:
+    if (dir == DIR_EAST or dir == DIR_WEST) and is_hort(char):
+        while is_hort(char):
+            dashed = dashed or is_dashed(char)
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
-            return another_corner(ascii, new_pos, char, positions, curves, dir)
-    elif (dir == DIR_NORTH or dir == DIR_SOUTH) and char == VIRT:
-        while char == VIRT:
+            return another_corner(ascii, new_pos, char, positions, curves, dir, dashed)
+    elif (dir == DIR_NORTH or dir == DIR_SOUTH) and is_virt(char):
+        while is_virt(char):
+            dashed = dashed or is_dashed(char)
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
-            return another_corner(ascii, new_pos, char, positions, curves, dir)
+            return another_corner(ascii, new_pos, char, positions, curves, dir, dashed)
     return None
 
 def start_corner(ascii, pos, char):
@@ -86,7 +97,7 @@ def start_corner(ascii, pos, char):
         curves = [is_curved_corner(char)]
         new_pos, new_char = get_next_char(ascii, pos, dir)
         if new_char:
-            box = travel(positions, curves, dir, ascii, new_pos, new_char)
+            box = travel(positions, curves, dir, ascii, new_pos, new_char, False)
             if box:
                 boxes.append(box)
     # reorient
@@ -139,7 +150,6 @@ def remove_dupes(boxes):
                     remove = False
                     break;
             if remove:
-                #del boxes[i]
                 boxes.remove(box)
                 break
     
@@ -160,5 +170,5 @@ def parse(ascii):
     # create figures
     figures = []
     for box in boxes:
-        figures.append(figure.Box(box[0], box[1]))
+        figures.append(figure.Box(box[0], box[1], box[2]))
     return figures

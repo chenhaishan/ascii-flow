@@ -35,7 +35,7 @@ def choose_corner(dir, pt1, pt2, curve):
                 return CORNER_CURVE_NW_SE
     return CORNER
 
-def fill_char(ascii, dir, pt1, pt2, corner2, line_char):
+def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed):
     x, y = pt1
     xmod = ymod = 0
     if dir == DIR_WEST:
@@ -50,7 +50,11 @@ def fill_char(ascii, dir, pt1, pt2, corner2, line_char):
         x += xmod
         y += ymod
         # write box side char
-        ascii[y][x] = line_char
+        if dashed:
+            ascii[y][x] = line_char_dash
+            dashed = False
+        else:
+            ascii[y][x] = line_char
     # write box corner char
     x, y = pt2
     ascii[y][x] = corner2
@@ -103,9 +107,9 @@ def serialize(gaphs):
             # write box side
             dir = get_direction(pt1, pt2)
             if dir == DIR_WEST or dir == DIR_EAST:
-                fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), HORT)
+                fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), HORT, HORT_DASH, g.dashed)
             else:
-                fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), VIRT)
+                fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), VIRT, VIRT_DASH, g.dashed)
     # convert line char arrays to strings
     for i in range(len(ascii)):
         ascii[i] = "".join(ascii[i])

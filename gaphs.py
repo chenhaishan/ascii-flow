@@ -11,6 +11,7 @@ class Box(Item):
         super(Box, self).__init__()
         self.positions = box.positions
         self.curves = box.curves
+        self.dashed = box.dashed
         # calc x, y, width & height
         x = x2 = self.positions[0][0]
         y = y2 = self.positions[0][1]
@@ -167,6 +168,8 @@ class Box(Item):
         else:
             cr.set_source_rgba(1, 1, 1, .8)
         cr.fill_preserve()
+        if self.dashed:
+            cr.set_dash((5, 3))
         cr.set_source_rgb(0, 0, 0.8)
         cr.stroke()
 
