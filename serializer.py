@@ -30,9 +30,9 @@ def choose_corner(dir, pt1, pt2, curve):
                 return CORNER_CURVE_NW_SE
         elif dir == DIR_NORTH:
             if dir2 == DIR_EAST:
-                return CORNER_CURVE_NE_SW
-            else:
                 return CORNER_CURVE_NW_SE
+            else:
+                return CORNER_CURVE_NE_SW
     return CORNER
 
 def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed):
@@ -98,8 +98,10 @@ def serialize(gaphs):
                 curve = g.curves[0]
             if i < l - 2:
                 pt3 = g.pts[i+2]
+            elif i < l - 1:
+                pt3 = g.pts[0]
             else:
-                pt3 = g.pts[l-i-1]
+                pt3 = g.pts[1]
             # normalise to char positions
             pt1 = int(pt1[0] + g.matrix[4]) / CHAR_X, int(pt1[1] + g.matrix[5]) / CHAR_Y
             pt2 = int(pt2[0] + g.matrix[4]) / CHAR_X, int(pt2[1] + g.matrix[5]) / CHAR_Y
