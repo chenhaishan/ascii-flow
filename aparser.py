@@ -54,41 +54,66 @@ def is_dashed(char):
 # Recursive box search methods
 #
 
-def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed):
+def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candidate_stack):
+    # check if we have visited this position before
+    if pos in positions:
+        # check if we have finished the box
+        if pos == positions[0]:
+            return [positions, curves, dashed]
+        # otherwise back up 
+        if candidate_stack:
+            # rewind candidate stack
+            candidates = candidate_stack[-1:][0]
+            pos, dir, new_pos, char = candidates.pop()
+            if len(candidates) == 0:
+                candidate_stack.pop()
+            # rewind positions & curves
+            while pos != positions[-1:][0]:
+                positions.pop()
+                curves.pop()
+            # retry traval
+            return travel(positions, curves, dir, ascii, new_pos, char, dashed, candidate_stack)
+        return None
+    # add new position to the mix
     positions.append(pos)
     curves.append(is_curved_corner(char))
-    # check if we have finished the box
-    pos_start, pos_end = positions[0], positions[-1:][0]
-    if pos_start[0] == pos_end[0] and pos_start[1] == pos_end[1]:
-        return [positions[:-1], curves[:-1], dashed]
     # try relevant directions
-    directions = []
-    if prev_dir == DIR_EAST or prev_dir == DIR_WEST:
-        directions = [DIR_NORTH, DIR_SOUTH]
-    else:
-        directions = [DIR_EAST, DIR_WEST]
+    directions = [DIR_EAST, DIR_WEST, DIR_NORTH, DIR_SOUTH]
+    if prev_dir == DIR_EAST: directions.remove(DIR_WEST)
+    if prev_dir == DIR_WEST: directions.remove(DIR_EAST)
+    if prev_dir == DIR_NORTH: directions.remove(DIR_SOUTH)
+    if prev_dir == DIR_SOUTH: directions.remove(DIR_NORTH)
+    candidates = []
     for dir in directions:
         new_pos, char = get_next_char(ascii, pos, dir)
-        if is_virt(char) or is_hort(char) or is_corner(char):
-           return travel(positions, curves, dir, ascii, new_pos, char, dashed)
+        if ((dir == DIR_EAST or dir == DIR_WEST) and is_hort(char)) or \
+           ((dir == DIR_SOUTH or dir == DIR_NORTH) and is_virt(char)) or \
+           is_corner(char):
+            candidates.append((pos, dir, new_pos, char))
+    if candidates:
+        pos, dir, new_pos, char = candidates[0]
+        del candidates[0]
+        if candidates:
+            candidate_stack.append(candidates)
+        return travel(positions, curves, dir, ascii, new_pos, char, dashed, candidate_stack)
     return None
 
-def travel(positions, curves, dir, ascii, pos, char, dashed):
+def travel(positions, curves, dir, ascii, pos, char, dashed, candidate_stack):
     new_pos = pos
     if (dir == DIR_EAST or dir == DIR_WEST) and is_hort(char):
         while is_hort(char):
             dashed = dashed or is_dashed(char)
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
-            return another_corner(ascii, new_pos, char, positions, curves, dir, dashed)
+            return another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
     elif (dir == DIR_NORTH or dir == DIR_SOUTH) and is_virt(char):
         while is_virt(char):
             dashed = dashed or is_dashed(char)
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
-            return another_corner(ascii, new_pos, char, positions, curves, dir, dashed)
+            return another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
     elif is_corner(char):
-        return another_corner(ascii, new_pos, char, positions, curves, dir, dashed)
+        return another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
     return None
 
 def start_corner(ascii, pos, char):
@@ -99,7 +124,7 @@ def start_corner(ascii, pos, char):
         curves = [is_curved_corner(char)]
         new_pos, new_char = get_next_char(ascii, pos, dir)
         if new_char:
-            box = travel(positions, curves, dir, ascii, new_pos, new_char, False)
+            box = travel(positions, curves, dir, ascii, new_pos, new_char, False, [])
             if box:
                 boxes.append(box)
     # reorient
