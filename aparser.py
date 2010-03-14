@@ -51,7 +51,7 @@ def is_dashed(char):
     return char == HORT_DASH or char == VIRT_DASH
 
 #
-# Recursive search methods
+# Recursive box search methods
 #
 
 def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed):
@@ -69,7 +69,7 @@ def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed):
         directions = [DIR_EAST, DIR_WEST]
     for dir in directions:
         new_pos, char = get_next_char(ascii, pos, dir)
-        if is_virt(char) or is_hort(char):
+        if is_virt(char) or is_hort(char) or is_corner(char):
            return travel(positions, curves, dir, ascii, new_pos, char, dashed)
     return None
 
@@ -87,6 +87,8 @@ def travel(positions, curves, dir, ascii, pos, char, dashed):
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
             return another_corner(ascii, new_pos, char, positions, curves, dir, dashed)
+    elif is_corner(char):
+        return another_corner(ascii, new_pos, char, positions, curves, dir, dashed)
     return None
 
 def start_corner(ascii, pos, char):
