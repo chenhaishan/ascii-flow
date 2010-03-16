@@ -78,11 +78,10 @@ def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candid
     positions.append(pos)
     curves.append(is_curved_corner(char))
     # try relevant directions
-    directions = [DIR_EAST, DIR_WEST, DIR_NORTH, DIR_SOUTH]
-    if prev_dir == DIR_EAST: directions.remove(DIR_WEST)
-    if prev_dir == DIR_WEST: directions.remove(DIR_EAST)
-    if prev_dir == DIR_NORTH: directions.remove(DIR_SOUTH)
-    if prev_dir == DIR_SOUTH: directions.remove(DIR_NORTH)
+    if prev_dir == DIR_EAST: directions = [DIR_SOUTH, DIR_EAST, DIR_NORTH]
+    if prev_dir == DIR_WEST: directions = [DIR_NORTH, DIR_WEST, DIR_SOUTH]
+    if prev_dir == DIR_NORTH: directions = [DIR_EAST, DIR_NORTH, DIR_WEST]
+    if prev_dir == DIR_SOUTH: directions = [DIR_WEST, DIR_SOUTH, DIR_EAST]
     candidates = []
     for dir in directions:
         new_pos, char = get_next_char(ascii, pos, dir)
@@ -118,15 +117,11 @@ def travel(positions, curves, dir, ascii, pos, char, dashed, candidate_stack):
 
 def start_corner(ascii, pos, char):
     boxes = []
-    # try all directions
-    for dir in [DIR_EAST, DIR_SOUTH, DIR_WEST, DIR_NORTH]:
-        positions = [pos]
-        curves = [is_curved_corner(char)]
-        new_pos, new_char = get_next_char(ascii, pos, dir)
-        if new_char:
-            box = travel(positions, curves, dir, ascii, new_pos, new_char, False, [])
-            if box:
-                boxes.append(box)
+    # search in all directions
+    for dir in (DIR_EAST, DIR_SOUTH, DIR_WEST, DIR_NORTH):
+        box = another_corner(ascii, pos, char, [], [], dir, False, [])
+        if box:
+            boxes.append(box)
     # reorient
     orient_boxes(boxes)
     return boxes
@@ -171,14 +166,145 @@ def remove_dupes(boxes):
         box = boxes[i]
         for j in range(i):
             box_compare = boxes[j]
+            if len(box[0]) != len(box_compare[0]):
+                continue
             remove = True
             for pos in box[0]:
                 if not pos in box_compare[0]:
                     remove = False
-                    break;
+                    break
             if remove:
                 boxes.remove(box)
                 break
+
+#
+# redundant super boxes removal
+#
+
+def pos_in_box_a(box, pos):
+    # if the point is shared with the box then it is deemed inside
+    if pos in box:
+       return 1 
+    return False
+
+def pos_in_box_b(box, pos):
+    #
+    # We try a basic crossing number algo
+    # (for our basic right angled boxes)
+    #
+
+    # crossing number counter
+    cn = 0
+    # x & y
+    x, y = pos
+    #
+    # We dont want to use concurrent vertical sections if the first one was used
+    # for example the point (*) below would hit the two vertical wall sections
+    # ruining the result
+    #
+    #           +
+    #           |
+    #  pt -> *  +
+    #           |
+    #           +
+    #
+    crossed_last_time = 0 
+    # We also want to ignore the second cross in cases like so:
+    #
+    #           +
+    #           |
+    #  pt -> *  +--+
+    #              |
+    #              +
+    #
+    # But trigger a cross twice in cases like so:
+    #
+    #           +  +
+    #           |  |
+    #  pt -> *  +--+
+    #              
+    crossed_vertex_last_time = 0
+    crossed_vertex_dir = 0
+    # start the crossing number method
+    for i in range(len(box)):
+        # find next box edge (x1,y1 <--> x2,y2)
+        x1, y1 = box[i]
+        if i < len(box)-1:
+            x2, y2 = box[i+1]
+        else:
+            x2, y2 = box[0]
+        # check if ray cast from x,y and heading east will cross the edge
+        if y2 != y1 and not crossed_last_time:
+            if y >= y1 and y <= y2 or y <= y1 and y >= y2:
+                if x < x1: # x1 & x2 are the same here
+                    if y == y1 or y == y2:
+                        if crossed_vertex_last_time:
+                            if crossed_vertex_dir == y2 > y1:
+                                crossed_vertex_last_time = False
+                                continue
+                        crossed_vertex_last_time = True
+                        crossed_vertex_dir = y2 > y1
+                    crossed_last_time = True
+                    cn += 1
+            else:
+                last_cross_y = -1
+        else:
+            crossed_last_time = False
+    # return true if the crossing number counter is odd
+    return cn % 2
+
+def box_contains(box1, box2):
+    # does box1 contain box2
+    for pos in box2:
+        if not pos_in_box_a(box1, pos) and not pos_in_box_b(box1, pos):
+            return False
+    return True
+
+def box_shares_a_border(box1, box2):
+    # does box1 share at least one border with box2
+    for i in range(len(box1)):
+        # iterate through box1 borders
+        b1pt1 = box1[i]
+        if i < len(box1)-1:
+            b1pt2 = box1[i+1]
+        else:
+            b1pt2 = box1[0]
+        # iterate through box2 borders
+        for j in range(len(box2)):
+            b2pt1 = box2[j]
+            if j < len(box2)-1:
+                b2pt2 = box2[j+1]
+            else:
+                b2pt2 = box2[0]
+            # check if the borders match
+            if b1pt1 == b2pt1 and b1pt2 == b2pt2 or b1pt1 == b2pt2 and b1pt2 == b2pt1:
+                return True
+    return False
+
+def remove_redundants(boxes):
+    # redundant boxes are those that contain smaller boxes and also share at least one border with them
+    redo = True
+    while redo:
+        redo = False
+        for i in range(len(boxes)-1, 0, -1):
+            box = boxes[i]
+            for j in range(i):
+                box_compare = boxes[j]
+                if box_contains(box[0], box_compare[0]):
+                    if box_shares_a_border(box[0], box_compare[0]):
+                        boxes.remove(box)
+                        break
+                elif box_contains(box_compare[0], box[0]):
+                    boxes.remove(box_compare)
+                    # now we must start from the beginning because we have changed the array order
+                    redo = True;
+                    break
+            if redo:
+                break
+
+def simplify(boxes):
+    # here we want to get rid of redundant vertexes
+    pass
     
 ## Search for boxes using a left to right, top to bottom method
 #  @param ascii A list of text lines 
@@ -194,6 +320,10 @@ def parse(ascii):
 
     # remove dupes
     remove_dupes(boxes)
+    # remove redundants
+    remove_redundants(boxes)
+    # simplify boxes
+    simplify(boxes)
     # create figures
     figures = []
     for box in boxes:
