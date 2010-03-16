@@ -304,6 +304,25 @@ def remove_redundants(boxes):
 
 def simplify(boxes):
     # here we want to get rid of redundant vertexes
+    for box in boxes:
+        for i in range(len(box[0])-1, 0, -1):
+            pos = box[0][i]
+            remove = False
+            if i > 0:
+                prev_pos = box[0][i-1]
+            else:
+                prev_pos = box[0][len(box[0])-1]
+            if i < len(box[0])-1:
+                next_pos = box[0][i+1]
+            else:
+                next_pos = box[0][0]
+            if prev_pos[0] == pos[0] and pos[0] == next_pos[0]:
+                remove = True
+            elif prev_pos[1] == pos[1] and pos[1] == next_pos[1]:
+                remove = True
+            if remove:
+                del box[0][i]
+                del box[1][i]
     pass
     
 ## Search for boxes using a left to right, top to bottom method
