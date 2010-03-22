@@ -430,11 +430,11 @@ def pos_in_line(line, pos):
                 # pos x == line segment x
                 if pos_b[1] > pos_a[1]:
                     # heading south
-                    if pos[1] >= pos_a[1] or pos[1] <= pos_b[1]:
+                    if pos[1] >= pos_a[1] and pos[1] <= pos_b[1]:
                         return True
                 else:
                     # heading north
-                    if pos[1] <= pos_a[1] or pos[1] >= pos_b[1]:
+                    if pos[1] <= pos_a[1] and pos[1] >= pos_b[1]:
                         return True
         else:
             # hortizontal line segment
@@ -442,11 +442,11 @@ def pos_in_line(line, pos):
                 # pos y == line segment y
                 if pos_b[0] > pos_a[0]:
                     # heading east
-                    if pos[0] >= pos_a[0] or pos[0] <= pos_b[0]:
+                    if pos[0] >= pos_a[0] and pos[0] <= pos_b[0]:
                         return True
                 else:
                     # heading west
-                    if pos[0] <= pos_a[0] or pos[0] >= pos_b[0]:
+                    if pos[0] <= pos_a[0] and pos[0] >= pos_b[0]:
                         return True
     return False
 
@@ -457,7 +457,7 @@ def line_contains(line1, line2):
     return True
 
 def remove_redundant_lines(lines):
-    # redundant lines are those that contain smaller lines
+    # redundant lines are those that overlap with larger lines
     redo = True
     while redo:
         redo = False
