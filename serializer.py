@@ -111,7 +111,7 @@ def serialize(gaphs):
             if dir == DIR_WEST or dir == DIR_EAST:
                 fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), HORT, HORT_DASH, g.dashed)
             else:
-                fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), VIRT, VIRT_DASH, g.dashed)
+                fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), VERT, VERT_DASH, g.dashed)
     # convert line char arrays to strings
     for i in range(len(ascii)):
         ascii[i] = "".join(ascii[i])

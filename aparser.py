@@ -44,17 +44,20 @@ def is_curved_corner(char):
 def is_hort(char):
     return char == HORT or char == HORT_DASH
 
-def is_virt(char):
-    return char == VIRT or char == VIRT_DASH
+def is_vert(char):
+    return char == VERT or char == VERT_DASH
 
 def is_dashed(char):
-    return char == HORT_DASH or char == VIRT_DASH
+    return char == HORT_DASH or char == VERT_DASH
+
+def is_line_end(char):
+    return char == LINE_EAST or char == LINE_WEST or char == LINE_SOUTH or char == LINE_SOUTH2 or char == LINE_NORTH
 
 #
 # Recursive box search methods
 #
 
-def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candidate_stack):
+def box_search_another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candidate_stack):
     # check if we have visited this position before
     if pos in positions:
         # check if we have finished the box
@@ -72,7 +75,7 @@ def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candid
                 positions.pop()
                 curves.pop()
             # retry traval
-            return travel(positions, curves, dir, ascii, new_pos, char, dashed, candidate_stack)
+            return box_search_side_travel(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
         return None
     # add new position to the mix
     positions.append(pos)
@@ -86,7 +89,7 @@ def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candid
     for dir in directions:
         new_pos, char = get_next_char(ascii, pos, dir)
         if ((dir == DIR_EAST or dir == DIR_WEST) and is_hort(char)) or \
-           ((dir == DIR_SOUTH or dir == DIR_NORTH) and is_virt(char)) or \
+           ((dir == DIR_SOUTH or dir == DIR_NORTH) and is_vert(char)) or \
            is_corner(char):
             candidates.append((pos, dir, new_pos, char))
     if candidates:
@@ -94,32 +97,32 @@ def another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candid
         del candidates[0]
         if candidates:
             candidate_stack.append(candidates)
-        return travel(positions, curves, dir, ascii, new_pos, char, dashed, candidate_stack)
+        return box_search_side_travel(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
     return None
 
-def travel(positions, curves, dir, ascii, pos, char, dashed, candidate_stack):
+def box_search_side_travel(ascii, pos, char, positions, curves, dir, dashed, candidate_stack):
     new_pos = pos
     if (dir == DIR_EAST or dir == DIR_WEST) and is_hort(char):
         while is_hort(char):
             dashed = dashed or is_dashed(char)
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
-            return another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
-    elif (dir == DIR_NORTH or dir == DIR_SOUTH) and is_virt(char):
-        while is_virt(char):
+            return box_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+    elif (dir == DIR_NORTH or dir == DIR_SOUTH) and is_vert(char):
+        while is_vert(char):
             dashed = dashed or is_dashed(char)
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
-            return another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+            return box_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
     elif is_corner(char):
-        return another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+        return box_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
     return None
 
-def start_corner(ascii, pos, char):
+def box_search_start_corner(ascii, pos, char):
     boxes = []
     # search in all directions
     for dir in (DIR_EAST, DIR_SOUTH, DIR_WEST, DIR_NORTH):
-        box = another_corner(ascii, pos, char, [], [], dir, False, [])
+        box = box_search_another_corner(ascii, pos, char, [], [], dir, False, [])
         if box:
             boxes.append(box)
     # reorient
@@ -147,15 +150,125 @@ def orient_boxes(boxes):
     for i in range(len(boxes)):
         orient_to_top_left(boxes[i])
 
+#
+# find boxes
+#
+
 def find_boxes(ascii, pos):
     boxes = []
     x, y = pos
-    line = ascii[y]
-    char = line[x]
+    char = ascii[y][x]
     # check if current position is the start of a box
     if is_corner(char):
-        boxes = start_corner(ascii, pos, char)
+        boxes = box_search_start_corner(ascii, pos, char)
     return boxes
+
+
+#
+# line search functions
+#
+
+def line_search_another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candidate_stack):
+    # check if we have visited this position before
+    if pos in positions:
+        # check if we have finished the box
+        if pos == positions[0]:
+            return [positions, curves, dashed]
+        # otherwise back up 
+        if candidate_stack:
+            # rewind candidate stack
+            candidates = candidate_stack[-1:][0]
+            pos, dir, new_pos, char = candidates.pop()
+            if len(candidates) == 0:
+                candidate_stack.pop()
+            # rewind positions & curves
+            while pos != positions[-1:][0]:
+                positions.pop()
+                curves.pop()
+            # retry traval
+            return line_search_side_travel(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+        return None
+    # add new position to the mix
+    positions.append(pos)
+    curves.append(is_curved_corner(char))
+    # try relevant directions
+    if prev_dir == DIR_EAST: directions = [DIR_SOUTH, DIR_EAST, DIR_NORTH]
+    if prev_dir == DIR_WEST: directions = [DIR_NORTH, DIR_WEST, DIR_SOUTH]
+    if prev_dir == DIR_NORTH: directions = [DIR_EAST, DIR_NORTH, DIR_WEST]
+    if prev_dir == DIR_SOUTH: directions = [DIR_WEST, DIR_SOUTH, DIR_EAST]
+    candidates = []
+    for dir in directions:
+        new_pos, char = get_next_char(ascii, pos, dir)
+        if ((dir == DIR_EAST or dir == DIR_WEST) and is_hort(char)) or \
+           ((dir == DIR_SOUTH or dir == DIR_NORTH) and is_vert(char)) or \
+           is_corner(char):
+            candidates.append((pos, dir, new_pos, char))
+    if candidates:
+        pos, dir, new_pos, char = candidates[0]
+        del candidates[0]
+        if candidates:
+            candidate_stack.append(candidates)
+        return line_search_side_travel(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+    return None
+
+def line_search_side_travel(ascii, pos, char, positions, curves, dir, dashed, candidate_stack):
+    new_pos = pos
+    last_pos = pos
+    if (dir == DIR_EAST or dir == DIR_WEST) and is_hort(char):
+        while is_hort(char):
+            dashed = dashed or is_dashed(char)
+            last_pos = new_pos
+            new_pos, char = get_next_char(ascii, new_pos, dir)
+        if is_corner(char):
+            return line_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+    elif (dir == DIR_NORTH or dir == DIR_SOUTH) and is_vert(char):
+        while is_vert(char):
+            dashed = dashed or is_dashed(char)
+            last_pos = new_pos
+            new_pos, char = get_next_char(ascii, new_pos, dir)
+        if is_corner(char):
+            return line_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+    elif is_corner(char):
+        return line_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+    # return line as is
+    positions.append(last_pos)
+    curves.append(False)
+    return [positions, curves, dashed]
+
+def line_start(ascii, pos, char):
+    lines = []
+    # search north/south
+    if is_vert(char):
+        for dir in (DIR_NORTH, DIR_SOUTH):
+            line = line_search_side_travel(ascii, pos, char, [pos], [False], dir, False, [])
+            if line:
+                lines.append(line)
+    # search east/west
+    elif is_hort(char):
+        for dir in (DIR_EAST, DIR_WEST):
+            line = line_search_side_travel(ascii, pos, char, [pos], [False], dir, False, [])
+            if line:
+                lines.append(line)
+    # search all directions
+    elif is_line_end(char):
+        for dir in (DIR_EAST, DIR_SOUTH, DIR_WEST, DIR_NORTH):
+            line = line_search_another_corner(ascii, pos, char, [pos], [False], dir, False, [])
+            if line:
+                lines.append(line)
+    return lines
+
+#
+# find lines
+#
+
+def find_lines(ascii, pos):
+    lines = []
+    x, y = pos
+    char = ascii[y][x]
+    # check if current position is the start of a line
+    if is_vert(char) or is_hort(char) or is_line_end(char):
+        lines = line_start(ascii, pos, char)
+    return lines
 
 #
 # box duplicate removal
@@ -281,7 +394,7 @@ def box_shares_a_border(box1, box2):
                 return True
     return False
 
-def remove_redundants(boxes):
+def remove_redundant_boxes(boxes):
     # redundant boxes are those that contain smaller boxes and also share at least one border with them
     redo = True
     while redo:
@@ -295,12 +408,77 @@ def remove_redundants(boxes):
                         boxes.remove(box)
                         break
                 elif box_contains(box_compare[0], box[0]):
-                    boxes.remove(box_compare)
+                    if box_shares_a_border(box_compare[0], box[0]):
+                        boxes.remove(box_compare)
+                        # now we must start from the beginning because we have changed the array order
+                        redo = True;
+                        break
+            if redo:
+                break
+
+#
+# redunant lines removal
+#
+
+def pos_in_line(line, pos):
+    for i in range(len(line)-1):
+        pos_a = line[i]
+        pos_b = line[i+1]
+        if pos_a[0] == pos_b[0]:
+            # vertical line segment
+            if pos[0] == pos_a[0] and pos[0] == pos_b[0]:
+                # pos x == line segment x
+                if pos_b[1] > pos_a[1]:
+                    # heading south
+                    if pos[1] >= pos_a[1] or pos[1] <= pos_b[1]:
+                        return True
+                else:
+                    # heading north
+                    if pos[1] <= pos_a[1] or pos[1] >= pos_b[1]:
+                        return True
+        else:
+            # hortizontal line segment
+            if pos[1] == pos_a[1] and pos[1] == pos_b[1]:
+                # pos y == line segment y
+                if pos_b[0] > pos_a[0]:
+                    # heading east
+                    if pos[0] >= pos_a[0] or pos[0] <= pos_b[0]:
+                        return True
+                else:
+                    # heading west
+                    if pos[0] <= pos_a[0] or pos[0] >= pos_b[0]:
+                        return True
+    return False
+
+def line_contains(line1, line2):
+    for pos in line2:
+        if not pos in line1 and not pos_in_line(line1, pos):
+            return False
+    return True
+
+def remove_redundant_lines(lines):
+    # redundant lines are those that contain smaller lines
+    redo = True
+    while redo:
+        redo = False
+        for i in range(len(lines)-1, 0, -1):
+            line = lines[i]
+            for j in range(i):
+                line_compare = lines[j]
+                if line_contains(line_compare[0], line[0]):
+                    lines.remove(line)
+                    break
+                elif line_contains(line[0], line_compare[0]):
+                    lines.remove(line_compare)
                     # now we must start from the beginning because we have changed the array order
                     redo = True;
                     break
             if redo:
                 break
+
+#
+# box simplification
+#
 
 def simplify(boxes):
     # here we want to get rid of redundant vertexes
@@ -329,6 +507,10 @@ def simplify(boxes):
 #  @param ascii A list of text lines 
 #  @return A list of boxes
 def parse(ascii):
+    figures = []
+    #
+    # boxes
+    #
     boxes = []
     for i in range(len(ascii)):
         line = ascii[i]
@@ -336,15 +518,33 @@ def parse(ascii):
             new_boxes = find_boxes(ascii, (j, i))
             for box in new_boxes:
                 boxes.append(box)
-
     # remove dupes
     remove_dupes(boxes)
     # remove redundants
-    remove_redundants(boxes)
+    remove_redundant_boxes(boxes)
     # simplify boxes
     simplify(boxes)
     # create figures
-    figures = []
     for box in boxes:
         figures.append(figure.Box(box[0], box[1], box[2]))
+    #
+    # lines
+    #
+    lines = []
+    for i in range(len(ascii)):
+        line = ascii[i]
+        for j in range(len(line)):
+            new_lines = find_lines(ascii, (j, i))
+            for line in new_lines:
+                lines.append(line)
+    # remove dupes
+    remove_dupes(lines)
+    # remove redundants
+    remove_redundant_lines(lines)
+    # simplify boxes
+    #simplify(lines)
+    # create figures
+    for line in lines:
+        figures.append(figure.Line(line[0], line[1], line[2]))
+        print line
     return figures

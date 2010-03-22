@@ -9,6 +9,7 @@ import options
 import preprocess
 import aparser
 import serializer
+import figure
 import gaphs
 import ui
 from asc import CHAR_X, CHAR_Y
@@ -34,7 +35,10 @@ def setup_canvas(figures):
     canvas = gaphas.Canvas()
 
     for f in figures:
-        b = gaphs.Box(f, canvas)
+        if isinstance(f, figure.Box):
+            gaphs.Box(f, canvas)
+        elif isinstance(f, figure.Line):
+            gaphs.Line(f, canvas)
 
     return canvas
 

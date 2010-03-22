@@ -3,12 +3,17 @@
 #
 
 CORNER = '+'
-VIRT = '|'
-VIRT_DASH = ':'
+VERT = '|'
+VERT_DASH = ':'
 HORT = '-'
 HORT_DASH = '='
 CORNER_CURVE_NW_SE = '/'
 CORNER_CURVE_NE_SW = '\\'
+LINE_EAST = '>'
+LINE_WEST = '<'
+LINE_SOUTH = 'V'
+LINE_SOUTH2 = 'v'
+LINE_NORTH = '^'
 
 CHAR_X = 12
 CHAR_Y = 16

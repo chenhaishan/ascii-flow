@@ -5,13 +5,9 @@ import math
 
 from asc import *
 
-class Box(Item):
+class AsciiItem(Item):
 
-    def __init__(self, box, canvas):
-        super(Box, self).__init__()
-        self.positions = box.positions
-        self.curves = box.curves
-        self.dashed = box.dashed
+    def init_geometry(self):
         # calc x, y, width & height
         x = x2 = self.positions[0][0]
         y = y2 = self.positions[0][1]
@@ -39,28 +35,31 @@ class Box(Item):
             py = pos[1] * CHAR_Y - y
             pts.append((px, py))
         self.pts = pts
-        # add handles
+
+    def init_handles(self):
         self._handles = []
-        for pt in pts:
+        for pt in self.pts:
             pt = self.renderise(pt)
             h = Handle(strength=VERY_STRONG)
             h.pos.x = pt[0]
             h.pos.y = pt[1]
             self._handles.append(h)
-        # add constraints
+
+    def init_constraints(self):
         l = len(self._handles)
         for i in range(l):
             h = self._handles[i]
             if i < l - 1:
                 next_h = self._handles[i+1]
             else:
+                if not self.closed_shape:
+                    return
                 next_h = self._handles[0]
             if next_h.pos.x > h.pos.x or next_h.pos.x < h.pos.x:
                 self.constraint(horizontal=(h.pos, next_h.pos))
             else:
                 self.constraint(vertical=(h.pos, next_h.pos))
-        # add to canvas
-        canvas.add(self)
+
 
     def normalize(self):
         updated = False
@@ -113,7 +112,8 @@ class Box(Item):
     def draw(self, context):
         cr = context.cairo
         # draw fill area
-        cr.set_source_rgba(0, 0, 0.8, 0.07)
+        r, g, b, a = self.fill_area
+        cr.set_source_rgba(r, g, b, a)
         cr.rectangle(0, 0, self.width, self.height)
         cr.fill()
         # create path
@@ -135,6 +135,8 @@ class Box(Item):
                 next_pt = self.renderise(pts[i+1])
                 next_curve = c[i+1]
             else:
+                if not self.closed_shape:
+                    break
                 next_pt = self.renderise(pts[0])
                 next_curve = c[0]
             # get direction
@@ -158,21 +160,57 @@ class Box(Item):
                     yoffset = -radius
                 if next_curve:
                     y2offset = radius
-
             cr.line_to(pt[0] + xoffset, pt[1] + yoffset)
             cr.line_to(next_pt[0] + x2offset, next_pt[1] + y2offset)
-        cr.close_path()
+        if self.closed_shape:
+            cr.close_path()
         # fill and stoke path
-        if context.hovered:
-            cr.set_source_rgba(.8, .8, 1, .8)
-        else:
-            cr.set_source_rgba(1, 1, 1, .8)
-        cr.fill_preserve()
+        if self.closed_shape:
+            if context.hovered:
+                cr.set_source_rgba(.8, .8, 1, .8)
+            else:
+                cr.set_source_rgba(1, 1, 1, .8)
+            cr.fill_preserve()
         if self.dashed:
             cr.set_dash((5, 3))
         cr.set_source_rgb(0, 0, 0.8)
         cr.stroke()
 
+class Box(AsciiItem):
+
+    closed_shape = True
+    fill_area = (0, 0, 0.8, 0.07)
+
+    def __init__(self, box, canvas):
+        super(Box, self).__init__()
+        self.positions = box.positions
+        self.curves = box.curves
+        self.dashed = box.dashed
+        # initialize geometry
+        self.init_geometry()
+        # initialize handles
+        self.init_handles()
+        # init_geometry constraints
+        self.init_constraints()
+        # add to canvas
+        canvas.add(self)
 
 
-        
+class Line(AsciiItem):
+
+    closed_shape = False
+    fill_area = (0, 0.8, 0.8, 0.07)
+
+    def __init__(self, box, canvas):
+        super(Line, self).__init__()
+        self.positions = box.positions
+        self.curves = box.curves
+        self.dashed = box.dashed
+        # initialize geometry
+        self.init_geometry()
+        # initialize handles
+        self.init_handles()
+        # init_geometry constraints
+        self.init_constraints()
+        # add to canvas
+        canvas.add(self)

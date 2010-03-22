@@ -45,7 +45,7 @@ def snap_to_grid(x, y, offsetx=0, offsety=0):
         y -= dy
     return x, y
 
-@gaphas.aspect.InMotion.when_type(gaphs.Box)
+@gaphas.aspect.InMotion.when_type(gaphs.AsciiItem)
 class SnapItemInMotion(object):
 
     def __init__(self, item, view):
@@ -77,7 +77,7 @@ class SnapItemInMotion(object):
     def stop_move(self):
         pass
 
-@gaphas.aspect.HandleInMotion.when_type(gaphs.Box)
+@gaphas.aspect.HandleInMotion.when_type(gaphs.AsciiItem)
 class SnapHandleInMotion(object):
     GLUE_DISTANCE = 10
 
@@ -208,6 +208,9 @@ class UI:
         view.set_size_request(600, 400)
         def selection_changed(view, items):
             if items:
+                print '---'
+                for b in items:
+                    print b.positions
                 for b in items:
                     cb_nw.set_active(b.curves[0])
                     cb_ne.set_active(b.curves[1])
