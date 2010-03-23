@@ -294,6 +294,9 @@ def remove_dupes(boxes):
 # redundant super boxes removal
 #
 
+def pos_in_box(box, pos):
+    return pos_in_box_a(box, pos) or pos_in_box_b(box, pos)
+
 def pos_in_box_a(box, pos):
     # if the point is shared with the box then it is deemed inside
     if pos in box:
@@ -369,7 +372,7 @@ def pos_in_box_b(box, pos):
 def box_contains(box1, box2):
     # does box1 contain box2
     for pos in box2:
-        if not pos_in_box_a(box1, pos) and not pos_in_box_b(box1, pos):
+        if not pos_in_box(box1, pos):
             return False
     return True
 
@@ -477,6 +480,33 @@ def remove_redundant_lines(lines):
                 break
 
 #
+# Remove all parts of lines that overlap other boxes
+#
+
+def chop_line_from_box(line, box):
+    pos = line[0][0]
+    if not pos_in_box(box[0], pos):
+        for i in range(len(line[0])):
+            pos = line[0][i]
+            if pos_in_box(box[0], pos):
+                line[0] = line[0][0:i+1]
+                line[1] = line[1][0:i+1]
+                return
+    pos = line[0][-1]
+    if not pos_in_box(box[0], pos):
+        for i in range(len(line[0])-1, -1, -1):
+            pos = line[0][i]
+            if pos_in_box(box[0], pos):
+                line[0] = line[0][i:]
+                line[1] = line[1][i:]
+                return
+
+def chop_lines_that_overlap_boxes(lines, boxes):
+    for line in lines:
+        for box in boxes:
+            chop_line_from_box(line, box)
+
+#
 # box simplification
 #
 
@@ -541,10 +571,11 @@ def parse(ascii):
     remove_dupes(lines)
     # remove redundants
     remove_redundant_lines(lines)
-    # simplify boxes
+    # remove parts of lines that overlap other boxes
+    chop_lines_that_overlap_boxes(lines, boxes)
+    # simplify lines
     #simplify(lines)
     # create figures
     for line in lines:
         figures.append(figure.Line(line[0], line[1], line[2]))
-        print line
     return figures
