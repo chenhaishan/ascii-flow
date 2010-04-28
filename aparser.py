@@ -507,6 +507,35 @@ def chop_lines_that_overlap_boxes(lines, boxes):
             chop_line_from_box(line, box)
 
 #
+# Remove all parts of lines that overlap other boxes
+#
+
+def chop_line_from_line(line1, line2):
+    pos = line1[0][0]
+    if not pos_in_line(line2[0], pos):
+        for i in range(len(line1[0])):
+            pos = line1[0][i]
+            if pos_in_line(line2[0], pos):
+                line1[0] = line1[0][0:i+1]
+                line1[1] = line1[1][0:i+1]
+                return
+    pos = line1[0][-1]
+    if not pos_in_line(line2[0], pos):
+        for i in range(len(line1[0])-1, -1, -1):
+            pos = line1[0][i]
+            if pos_in_line(line2[0], pos):
+                line1[0] = line1[0][i:]
+                line1[1] = line1[1][i:]
+                return
+
+def chop_lines_that_overlap(lines):
+    for i in range(len(lines)):
+        line = lines[i]
+        for j in range(len(lines)):
+            if i != j:
+                chop_line_from_line(line, lines[j])
+
+#
 # box simplification
 #
 
@@ -573,6 +602,10 @@ def parse(ascii):
     remove_redundant_lines(lines)
     # remove parts of lines that overlap other boxes
     chop_lines_that_overlap_boxes(lines, boxes)
+    # remove parts of lines that overlap other lines
+    chop_lines_that_overlap(lines)
+    # remove redundants
+    remove_redundant_lines(lines)
     # simplify lines
     #simplify(lines)
     # create figures
