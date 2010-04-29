@@ -295,15 +295,19 @@ def remove_dupes(boxes):
 #
 
 def pos_in_box(box, pos):
-    return pos_in_box_a(box, pos) or pos_in_box_b(box, pos)
+    return pos_in_box_a(box, pos) or pos_in_box_b(box, pos) or pos_in_box_c(box, pos)
 
 def pos_in_box_a(box, pos):
     # if the point is shared with the box then it is deemed inside
     if pos in box:
-       return 1 
+       return True 
     return False
 
 def pos_in_box_b(box, pos):
+    # check if the point is on one of the box lines
+    return pos_in_line(box, pos)
+
+def pos_in_box_c(box, pos):
     #
     # We try a basic crossing number algo
     # (for our basic right angled boxes)
