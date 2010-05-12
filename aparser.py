@@ -168,7 +168,7 @@ def find_boxes(ascii, pos):
 # line search functions
 #
 
-def line_search_another_corner(ascii, pos, char, positions, curves, prev_dir, dashed, candidate_stack):
+def line_search_another_corner(ascii, pos, char, positions, curves, start_arrow, end_arrow, prev_dir, dashed, candidate_stack):
     # check if we have visited this position before
     if pos in positions:
         # check if we have finished the box
@@ -186,7 +186,7 @@ def line_search_another_corner(ascii, pos, char, positions, curves, prev_dir, da
                 positions.pop()
                 curves.pop()
             # retry traval
-            return line_search_side_travel(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+            return line_search_side_travel(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
         return None
     # add new position to the mix
     positions.append(pos)
@@ -208,10 +208,10 @@ def line_search_another_corner(ascii, pos, char, positions, curves, prev_dir, da
         del candidates[0]
         if candidates:
             candidate_stack.append(candidates)
-        return line_search_side_travel(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+        return line_search_side_travel(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
     return None
 
-def line_search_side_travel(ascii, pos, char, positions, curves, dir, dashed, candidate_stack):
+def line_search_side_travel(ascii, pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack):
     new_pos = pos
     last_pos = pos
     if (dir == DIR_EAST or dir == DIR_WEST) and is_hort(char):
@@ -220,39 +220,41 @@ def line_search_side_travel(ascii, pos, char, positions, curves, dir, dashed, ca
             last_pos = new_pos
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
-            return line_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+            return line_search_another_corner(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
     elif (dir == DIR_NORTH or dir == DIR_SOUTH) and is_vert(char):
         while is_vert(char):
             dashed = dashed or is_dashed(char)
             last_pos = new_pos
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
-            return line_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+            return line_search_another_corner(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
     elif is_corner(char):
-        return line_search_another_corner(ascii, new_pos, char, positions, curves, dir, dashed, candidate_stack)
+        return line_search_another_corner(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
+    elif is_line_end(char):
+        end_arrow = True
     # return line as is
     positions.append(last_pos)
     curves.append(False)
-    return [positions, curves, dashed]
+    return [positions, curves, dashed, start_arrow, end_arrow]
 
 def line_start(ascii, pos, char):
     lines = []
     # search north/south
     if is_vert(char):
         for dir in (DIR_NORTH, DIR_SOUTH):
-            line = line_search_side_travel(ascii, pos, char, [pos], [False], dir, False, [])
+            line = line_search_side_travel(ascii, pos, char, [pos], [False], False, False, dir, False, [])
             if line:
                 lines.append(line)
     # search east/west
     elif is_hort(char):
         for dir in (DIR_EAST, DIR_WEST):
-            line = line_search_side_travel(ascii, pos, char, [pos], [False], dir, False, [])
+            line = line_search_side_travel(ascii, pos, char, [pos], [False], False, False, dir, False, [])
             if line:
                 lines.append(line)
     # search all directions
     elif is_line_end(char):
         for dir in (DIR_EAST, DIR_SOUTH, DIR_WEST, DIR_NORTH):
-            line = line_search_another_corner(ascii, pos, char, [pos], [False], dir, False, [])
+            line = line_search_another_corner(ascii, pos, char, [], [], True, False, dir, False, [])
             if line:
                 lines.append(line)
     return lines
@@ -614,5 +616,5 @@ def parse(ascii):
     #simplify(lines)
     # create figures
     for line in lines:
-        figures.append(figure.Line(line[0], line[1], line[2]))
+        figures.append(figure.Line(line[0], line[1], line[2], line[3], line[4]))
     return figures

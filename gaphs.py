@@ -201,11 +201,13 @@ class Line(AsciiItem):
     closed_shape = False
     fill_area = (0, 0.8, 0.8, 0.07)
 
-    def __init__(self, box, canvas):
+    def __init__(self, line, canvas):
         super(Line, self).__init__()
-        self.positions = box.positions
-        self.curves = box.curves
-        self.dashed = box.dashed
+        self.positions = line.positions
+        self.curves = line.curves
+        self.dashed = line.dashed
+        self.start_arrow = line.start_arrow
+        self.end_arrow = line.end_arrow
         # initialize geometry
         self.init_geometry()
         # initialize handles
@@ -214,3 +216,34 @@ class Line(AsciiItem):
         self.init_constraints()
         # add to canvas
         canvas.add(self)
+
+    def direction_from_pts(self, pt1, pt2):
+        if pt1[0] > pt2[0]:
+            return 0
+        if pt1[0] < pt2[0]:
+            return 180.0 * (math.pi/180.0)
+        if pt1[1] > pt2[1]:
+            return 90.0 * (math.pi/180.0)
+        if pt1[1] < pt2[1]:
+            return 270.0 * (math.pi/180.0)
+
+    def draw(self, context):
+        AsciiItem.draw(self, context)
+        # draw arrows
+        if self.start_arrow:
+            self.draw_arrow(context, self.pts[0], self.direction_from_pts(self.pts[0], self.pts[1]))
+        if self.end_arrow:
+            self.draw_arrow(context, self.pts[-1], self.direction_from_pts(self.pts[-1], self.pts[-2]))
+
+    def draw_arrow(self, context, pt, dir):
+        cr = context.cairo
+        pt = self.renderise(pt)
+        cr.translate(pt[0], pt[1])
+        cr.move_to(0, 0)
+        cr.rotate(dir)
+        cr.line_to(0, -5)
+        cr.line_to(5, 0)
+        cr.line_to(0, 5)
+        cr.line_to(0, 0)
+        cr.fill()
+
