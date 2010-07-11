@@ -53,6 +53,17 @@ def is_dashed(char):
 def is_line_end(char):
     return char == LINE_EAST or char == LINE_WEST or char == LINE_SOUTH or char == LINE_SOUTH2 or char == LINE_NORTH
 
+def line_end_inversedir(char):
+    if char == LINE_EAST:
+        return DIR_WEST
+    if char == LINE_WEST:
+        return DIR_EAST
+    if char == LINE_NORTH:
+        return DIR_SOUTH
+    if char == LINE_SOUTH or char == LINE_SOUTH2:
+        return DIR_NORTH
+    return None
+
 #
 # Recursive box search methods
 #
@@ -209,7 +220,7 @@ def line_search_another_corner(ascii, pos, char, positions, curves, start_arrow,
         if candidates:
             candidate_stack.append(candidates)
         return line_search_side_travel(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
-    return None
+    return [positions, curves, dashed, start_arrow, end_arrow]
 
 def line_search_side_travel(ascii, pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack):
     new_pos = pos
@@ -253,8 +264,14 @@ def line_start(ascii, pos, char):
                 lines.append(line)
     # search all directions
     elif is_line_end(char):
-        for dir in (DIR_EAST, DIR_SOUTH, DIR_WEST, DIR_NORTH):
-            line = line_search_another_corner(ascii, pos, char, [], [], True, False, dir, False, [])
+        dir = line_end_inversedir(char)
+        new_pos, new_char = get_next_char(ascii, pos, dir)
+        print new_char, new_pos
+        if new_char != None:
+            print "starting line", char, new_char, pos, new_pos
+            line = line_search_side_travel(ascii, new_pos, new_char, [pos], [False], True, False, dir, False, [])
+            print line
+            print ''
             if line:
                 lines.append(line)
     return lines
