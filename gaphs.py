@@ -237,6 +237,7 @@ class Line(AsciiItem):
 
     def draw_arrow(self, context, pt, dir):
         cr = context.cairo
+        cr.save()
         pt = self.renderise(pt)
         cr.translate(pt[0], pt[1])
         cr.move_to(0, 0)
@@ -246,4 +247,5 @@ class Line(AsciiItem):
         cr.line_to(0, 5)
         cr.line_to(0, 0)
         cr.fill()
+        cr.restore()
 

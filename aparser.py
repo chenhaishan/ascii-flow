@@ -232,6 +232,10 @@ def line_search_side_travel(ascii, pos, char, positions, curves, start_arrow, en
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
             return line_search_another_corner(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
+        if is_line_end(char):
+            # finish line
+            end_arrow = True
+            last_pos = new_pos
     elif (dir == DIR_NORTH or dir == DIR_SOUTH) and is_vert(char):
         while is_vert(char):
             dashed = dashed or is_dashed(char)
@@ -239,9 +243,14 @@ def line_search_side_travel(ascii, pos, char, positions, curves, start_arrow, en
             new_pos, char = get_next_char(ascii, new_pos, dir)
         if is_corner(char):
             return line_search_another_corner(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
+        if is_line_end(char):
+            # finish line
+            end_arrow = True
+            last_pos = new_pos
     elif is_corner(char):
         return line_search_another_corner(ascii, new_pos, char, positions, curves, start_arrow, end_arrow, dir, dashed, candidate_stack)
     elif is_line_end(char):
+        # finish line
         end_arrow = True
     # return line as is
     positions.append(last_pos)
