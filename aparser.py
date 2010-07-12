@@ -266,12 +266,8 @@ def line_start(ascii, pos, char):
     elif is_line_end(char):
         dir = line_end_inversedir(char)
         new_pos, new_char = get_next_char(ascii, pos, dir)
-        print new_char, new_pos
         if new_char != None:
-            print "starting line", char, new_char, pos, new_pos
             line = line_search_side_travel(ascii, new_pos, new_char, [pos], [False], True, False, dir, False, [])
-            print line
-            print ''
             if line:
                 lines.append(line)
     return lines
