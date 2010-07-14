@@ -1,4 +1,5 @@
 from asc import *
+from gaphs import Box, Line
 
 def get_direction(pt1, pt2):
     if pt2[0] > pt1[0]:
@@ -35,7 +36,7 @@ def choose_corner(dir, pt1, pt2, curve):
                 return CORNER_CURVE_NE_SW
     return CORNER
 
-def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed):
+def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed, do_initial_char = False, do_corner_char = True):
     x, y = pt1
     xmod = ymod = 0
     if dir == DIR_WEST:
@@ -47,17 +48,71 @@ def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed):
     elif dir == DIR_SOUTH:
         ymod = 1
     while x != pt2[0] or y != pt2[1]:
+        # write initial side char
+        if do_initial_char:
+            if dashed:
+                ascii[y][x] = line_char_dash
+                dashed = False
+            else:
+                ascii[y][x] = line_char
+        # increment coord
         x += xmod
         y += ymod
-        # write box side char
+        # write side char
         if dashed:
             ascii[y][x] = line_char_dash
             dashed = False
         else:
             ascii[y][x] = line_char
-    # write box corner char
-    x, y = pt2
-    ascii[y][x] = corner2
+    # write corner char
+    if do_corner_char:
+        x, y = pt2
+        ascii[y][x] = corner2
+
+def serialise_box(ascii, g):
+    l = len(g.pts)
+    for i in range(l):
+        # initialise loop vars
+        pt1 = g.pts[i]
+        if i < l - 1:
+            pt2 = g.pts[i+1]
+            curve = g.curves[i+1]
+        else:
+            pt2 = g.pts[0] 
+            curve = g.curves[0]
+        if i < l - 2:
+            pt3 = g.pts[i+2]
+        elif i < l - 1:
+            pt3 = g.pts[0]
+        else:
+            pt3 = g.pts[1]
+        # normalise to char positions
+        pt1 = int(pt1[0] + g.matrix[4]) / CHAR_X, int(pt1[1] + g.matrix[5]) / CHAR_Y
+        pt2 = int(pt2[0] + g.matrix[4]) / CHAR_X, int(pt2[1] + g.matrix[5]) / CHAR_Y
+        pt3 = int(pt3[0] + g.matrix[4]) / CHAR_X, int(pt3[1] + g.matrix[5]) / CHAR_Y
+        # write box side
+        dir = get_direction(pt1, pt2)
+        if dir == DIR_WEST or dir == DIR_EAST:
+            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), HORT, HORT_DASH, g.dashed)
+        else:
+            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), VERT, VERT_DASH, g.dashed)
+
+def serialise_line(ascii, g):
+    l = len(g.pts)
+    for i in range(l - 1):
+        # initialise loop vars
+        pt1 = g.pts[i]
+        pt2 = g.pts[i+1]
+        curve = g.curves[i+1]
+        # normalise to char positions
+        pt1 = int(pt1[0] + g.matrix[4]) / CHAR_X, int(pt1[1] + g.matrix[5]) / CHAR_Y
+        pt2 = int(pt2[0] + g.matrix[4]) / CHAR_X, int(pt2[1] + g.matrix[5]) / CHAR_Y
+        # write line segment
+        dir = get_direction(pt1, pt2)
+        if dir == DIR_WEST or dir == DIR_EAST:
+            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt1, pt2, curve), HORT, HORT_DASH, g.dashed, i == 0, i != l-2)
+        else:
+            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt1, pt2, curve), VERT, VERT_DASH, g.dashed, i == 0, i != l-2)
 
 def serialize(gaphs):
     ascii = []
@@ -78,40 +133,10 @@ def serialize(gaphs):
         ascii.append(line)
     # overlay the canvas items
     for g in gaphs:
-        # initialise loops vars
-        x, y = g.matrix[4], g.matrix[5]
-        w, h = g.width, g.height
-        x = int(round(x / CHAR_X))
-        y = int(round(y / CHAR_Y))
-        w = int(round(w / CHAR_X))
-        h = int(round(h / CHAR_Y))
-        c = g.curves
-        l = len(g.pts)
-        for i in range(l):
-            # initialise loop vars
-            pt1 = g.pts[i]
-            if i < l - 1:
-                pt2 = g.pts[i+1]
-                curve = g.curves[i+1]
-            else:
-                pt2 = g.pts[0] 
-                curve = g.curves[0]
-            if i < l - 2:
-                pt3 = g.pts[i+2]
-            elif i < l - 1:
-                pt3 = g.pts[0]
-            else:
-                pt3 = g.pts[1]
-            # normalise to char positions
-            pt1 = int(pt1[0] + g.matrix[4]) / CHAR_X, int(pt1[1] + g.matrix[5]) / CHAR_Y
-            pt2 = int(pt2[0] + g.matrix[4]) / CHAR_X, int(pt2[1] + g.matrix[5]) / CHAR_Y
-            pt3 = int(pt3[0] + g.matrix[4]) / CHAR_X, int(pt3[1] + g.matrix[5]) / CHAR_Y
-            # write box side
-            dir = get_direction(pt1, pt2)
-            if dir == DIR_WEST or dir == DIR_EAST:
-                fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), HORT, HORT_DASH, g.dashed)
-            else:
-                fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), VERT, VERT_DASH, g.dashed)
+        if isinstance(g, Box):
+            serialise_box(ascii, g)
+        if isinstance(g, Line):
+            serialise_line(ascii, g)
     # convert line char arrays to strings
     for i in range(len(ascii)):
         ascii[i] = "".join(ascii[i])
