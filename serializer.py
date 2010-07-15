@@ -11,25 +11,24 @@ def get_direction(pt1, pt2):
     elif pt2[1] < pt1[1]:
         return DIR_NORTH
 
-def choose_corner(dir, pt1, pt2, curve):
+def choose_corner(dir1, dir2, curve):
     if curve:
-        dir2 = get_direction(pt1, pt2)
-        if dir == DIR_EAST:
+        if dir1 == DIR_EAST:
             if dir2 == DIR_SOUTH:
                 return CORNER_CURVE_NE_SW
             else:
                 return CORNER_CURVE_NW_SE
-        elif dir == DIR_WEST:
+        elif dir1 == DIR_WEST:
             if dir2 == DIR_SOUTH:
                 return CORNER_CURVE_NW_SE
             else:
                 return CORNER_CURVE_NE_SW
-        elif dir == DIR_SOUTH:
+        elif dir1 == DIR_SOUTH:
             if dir2 == DIR_EAST:
                 return CORNER_CURVE_NE_SW
             else:
                 return CORNER_CURVE_NW_SE
-        elif dir == DIR_NORTH:
+        elif dir1 == DIR_NORTH:
             if dir2 == DIR_EAST:
                 return CORNER_CURVE_NW_SE
             else:
@@ -112,10 +111,11 @@ def serialise_box(ascii, g):
         pt3 = int(pt3[0] + g.matrix[4]) / CHAR_X, int(pt3[1] + g.matrix[5]) / CHAR_Y
         # write box side
         dir = get_direction(pt1, pt2)
+        dir2 = get_direction(pt2, pt3)
         if dir == DIR_WEST or dir == DIR_EAST:
-            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), HORT, HORT_DASH, g.dashed)
+            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), HORT, HORT_DASH, g.dashed)
         else:
-            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt2, pt3, curve), VERT, VERT_DASH, g.dashed)
+            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), VERT, VERT_DASH, g.dashed)
 
 def serialise_line(ascii, g):
     l = len(g.pts)
@@ -123,16 +123,24 @@ def serialise_line(ascii, g):
         # initialise points
         pt1 = g.pts[i]
         pt2 = g.pts[i+1]
+        pt3 = None
+        if i < l - 2:
+            pt3 = g.pts[i+2]
         curve = g.curves[i+1]
         # normalise to char positions
         pt1 = int(pt1[0] + g.matrix[4]) / CHAR_X, int(pt1[1] + g.matrix[5]) / CHAR_Y
         pt2 = int(pt2[0] + g.matrix[4]) / CHAR_X, int(pt2[1] + g.matrix[5]) / CHAR_Y
+        if pt3:
+            pt3 = int(pt3[0] + g.matrix[4]) / CHAR_X, int(pt3[1] + g.matrix[5]) / CHAR_Y
         # write line segment
         dir = get_direction(pt1, pt2)
+        dir2 = 0
+        if pt3:
+            dir2 = get_direction(pt2, pt3)
         if dir == DIR_WEST or dir == DIR_EAST:
-            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt1, pt2, curve), HORT, HORT_DASH, g.dashed, i == 0, i != l-2)
+            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), HORT, HORT_DASH, g.dashed, i == 0, i != l-2)
         else:
-            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt1, pt2, curve), VERT, VERT_DASH, g.dashed, i == 0, i != l-2)
+            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), VERT, VERT_DASH, g.dashed, i == 0, i != l-2)
         # write line arrow heads
         if i == 0 and g.start_arrow:
             char = choose_arrow(dir)
