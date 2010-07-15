@@ -36,6 +36,26 @@ def choose_corner(dir, pt1, pt2, curve):
                 return CORNER_CURVE_NE_SW
     return CORNER
 
+def choose_arrow(dir):
+    if dir == DIR_EAST:
+        return LINE_WEST
+    if dir == DIR_WEST:
+        return LINE_EAST
+    if dir == DIR_SOUTH:
+        return LINE_NORTH
+    if dir == DIR_NORTH:
+        return LINE_SOUTH
+
+def reverse_dir(dir):
+    if dir == DIR_EAST:
+        return DIR_WEST
+    if dir == DIR_WEST:
+        return DIR_EAST
+    if dir == DIR_SOUTH:
+        return DIR_NORTH
+    if dir == DIR_NORTH:
+        return DIR_SOUTH
+
 def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed, do_initial_char = False, do_corner_char = True):
     x, y = pt1
     xmod = ymod = 0
@@ -72,7 +92,7 @@ def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed, 
 def serialise_box(ascii, g):
     l = len(g.pts)
     for i in range(l):
-        # initialise loop vars
+        # initialise points
         pt1 = g.pts[i]
         if i < l - 1:
             pt2 = g.pts[i+1]
@@ -100,7 +120,7 @@ def serialise_box(ascii, g):
 def serialise_line(ascii, g):
     l = len(g.pts)
     for i in range(l - 1):
-        # initialise loop vars
+        # initialise points
         pt1 = g.pts[i]
         pt2 = g.pts[i+1]
         curve = g.curves[i+1]
@@ -113,6 +133,15 @@ def serialise_line(ascii, g):
             fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt1, pt2, curve), HORT, HORT_DASH, g.dashed, i == 0, i != l-2)
         else:
             fill_char(ascii, dir, pt1, pt2, choose_corner(dir, pt1, pt2, curve), VERT, VERT_DASH, g.dashed, i == 0, i != l-2)
+        # write line arrow heads
+        if i == 0 and g.start_arrow:
+            char = choose_arrow(dir)
+            x, y = pt1
+            ascii[y][x] = char
+        if i == l - 2 and g.end_arrow:
+            char = choose_arrow(reverse_dir(dir))
+            x, y = pt2
+            ascii[y][x] = char
 
 def serialize(gaphs):
     ascii = []
