@@ -1,7 +1,12 @@
-import gtk
+import gtk, pango
 import gaphas
 
 import gaphs
+import options
+import preprocess
+import aparser
+import figure
+import serializer
 from asc import CHAR_X, CHAR_Y
 
 class GridPainter(gaphas.painter.Painter):
@@ -137,15 +142,29 @@ def create_tool_chain():
         append(gaphas.tool.RubberbandTool())
     return chain
 
+def load_canvas(canvas, text):
+    for item in canvas.get_all_items():
+        canvas.remove(item)
+    ascii = preprocess.preprocess(options.Options(), text)
+    figures = aparser.parse(ascii)
+    for f in figures:
+        if isinstance(f, figure.Box):
+            gaphs.Box(f, canvas)
+        elif isinstance(f, figure.Line):
+            gaphs.Line(f, canvas)
+
 class UI:
 
     def destroy(self, widget, data=None):
         gtk.main_quit()
 
-    def __init__(self, canvas, save_cb):
+    def __init__(self, filename):
         self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
         self.window.connect("destroy", self.destroy)
         self.window.set_title("ascii flow")
+
+        # the gaphas canvas object
+        canvas = gaphas.Canvas()
 
         hbox = gtk.HBox()
         self.window.add(hbox)
@@ -153,9 +172,20 @@ class UI:
         # side bar
         vbox = gtk.VBox()
         # save button
-        button = gtk.Button("save")
+        button = gtk.Button("open")
         def click(widget):
-            save_cb(canvas)
+            chooser = gtk.FileChooserDialog(title=None, action=gtk.FILE_CHOOSER_ACTION_OPEN,
+                        buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+            filter = gtk.FileFilter()
+            filter.set_name("All Files")
+            filter.add_pattern("*.txt")
+            chooser.add_filter(filter)
+            response = chooser.run()
+            if response == gtk.RESPONSE_OK:
+                filename = chooser.get_filename()
+                data = open(filename, 'r').read()
+                load_canvas(canvas, data)
+            chooser.destroy()
         button.connect("clicked", click)
         vbox.pack_start(button, expand=False)
         # corner checkboxes
@@ -225,7 +255,47 @@ class UI:
                 cb_sw.set_active(False)
                 cb_dashed.set_active(False)
         view.connect("selection-changed", selection_changed)
-        hbox.add(view)
+
+        # ascii view
+        asciiview = gtk.TextView()
+        buffer = gtk.TextBuffer()
+        asciiview.set_buffer(buffer)
+        pangoFont = pango.FontDescription("Courier 11")
+        asciiview.modify_font(pangoFont)
+
+        # renderview
+        renderview = gtk.Image()
+
+        # notebook
+        notebook = gtk.Notebook()
+        notebook.append_page(view, gtk.Label("Vectors"))
+        notebook.append_page(asciiview, gtk.Label("Ascii"))
+        notebook.append_page(renderview, gtk.Label("Render"))
+        def switch_page(notebook, page, page_num):
+            if notebook.loaded:
+                if page_num == 0:
+                    print "vector view"
+                    text = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter())
+                    load_canvas(canvas, text)
+                if page_num == 1:
+                    print "ascii view"
+                    ascii = serializer.serialize(canvas.get_all_items())
+                    text = ""
+                    for line in ascii:
+                        text += line + "\n"
+                    buffer.set_text(text)
+                if page_num == 2:
+                    print "render view"
+            notebook.loaded = True
+        notebook.connect("switch-page", switch_page)
+        notebook.loaded = False
+
+        hbox.add(notebook)
+
+        # load file
+        if filename:
+            data = open(filename, 'r').read()
+            load_canvas(canvas, data)
 
         self.window.show_all()
 

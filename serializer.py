@@ -166,7 +166,7 @@ def serialize(gaphs):
             max_y = y2
     # build base char canvas
     for i in range(int(max_y) / CHAR_Y):
-        line = ['#'] * (int(max_x) / CHAR_X)
+        line = [' '] * (int(max_x) / CHAR_X)
         ascii.append(line)
     # overlay the canvas items
     for g in gaphs:
