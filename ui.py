@@ -1,5 +1,6 @@
 import gtk, pango
 import gaphas
+import subprocess, os
 
 import gaphs
 import options
@@ -273,22 +274,37 @@ class UI:
         notebook.append_page(renderview, gtk.Label("Render"))
         def switch_page(notebook, page, page_num):
             if notebook.loaded:
-                if page_num == 0:
-                    print "vector view"
-                    text = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter())
-                    load_canvas(canvas, text)
-                if page_num == 1:
-                    print "ascii view"
+                # set text
+                if notebook.last_page_num == 0:
                     ascii = serializer.serialize(canvas.get_all_items())
                     text = ""
                     for line in ascii:
                         text += line + "\n"
+                else:
+                    text = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter())
+                # init current page
+                if page_num == 0:
+                    # set vector view
+                    load_canvas(canvas, text)
+                if page_num == 1:
+                    # set ascii view
                     buffer.set_text(text)
                 if page_num == 2:
-                    print "render view"
+                    # set ascii view
+                    buffer.set_text(text)
+                    # set render view
+                    txt_filename = ".tempfile.txt"
+                    img_filename = ".tempfile.png"
+                    java = r'"C:\Program Files (x86)\Java\jre6\bin\javaw.exe"'
+                    open(txt_filename, "w").write(text)
+                    subprocess.Popen("%s -jar ditaa0_9.jar %s -o" % (java, txt_filename)).wait()
+                    renderview.set_from_file(img_filename)
+
             notebook.loaded = True
+            notebook.last_page_num = page_num
         notebook.connect("switch-page", switch_page)
         notebook.loaded = False
+        notebook.last_page_num = -1
 
         hbox.add(notebook)
 
