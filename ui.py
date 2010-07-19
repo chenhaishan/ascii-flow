@@ -182,11 +182,15 @@ class UI:
             filter.add_pattern("*.txt")
             chooser.add_filter(filter)
             response = chooser.run()
+            filename = chooser.get_filename()
+            chooser.destroy()
             if response == gtk.RESPONSE_OK:
-                filename = chooser.get_filename()
+                if self._notebook.get_current_page() != 0:
+                    self._notebook.set_current_page(0)
+                    while gtk.events_pending():
+                        gtk.main_iteration()
                 data = open(filename, 'r').read()
                 load_canvas(canvas, data)
-            chooser.destroy()
         button.connect("clicked", click)
         vbox.pack_start(button, expand=False)
         # corner checkboxes
@@ -305,6 +309,7 @@ class UI:
         notebook.connect("switch-page", switch_page)
         notebook.loaded = False
         notebook.last_page_num = -1
+        self._notebook = notebook
 
         hbox.add(notebook)
 
