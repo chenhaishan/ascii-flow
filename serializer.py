@@ -1,6 +1,8 @@
 from asc import *
 from gaphs import Box, Line
 
+BLANK = ' '
+
 def get_direction(pt1, pt2):
     if pt2[0] > pt1[0]:
         return DIR_EAST
@@ -55,7 +57,15 @@ def reverse_dir(dir):
     if dir == DIR_NORTH:
         return DIR_SOUTH
 
-def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed, do_initial_char = False, do_corner_char = True):
+def write_char(ascii, x, y, char):
+    cur_char = ascii[y][x]
+    ascii[y][x] = char
+    if is_curved_corner(char) or is_hort(char) or is_vert(char) or is_line_end(char):
+        if cur_char != char:
+            if cur_char != BLANK:
+                ascii[y][x] = CORNER
+
+def fill_line(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed, do_initial_char = False, do_corner_char = True, do_final_char = False):
     x, y = pt1
     xmod = ymod = 0
     if dir == DIR_WEST:
@@ -67,26 +77,25 @@ def fill_char(ascii, dir, pt1, pt2, corner2, line_char, line_char_dash, dashed, 
     elif dir == DIR_SOUTH:
         ymod = 1
     while x != pt2[0] or y != pt2[1]:
-        # write initial side char
+        # write side char
         if do_initial_char:
             if dashed:
-                ascii[y][x] = line_char_dash
+                write_char(ascii, x, y, line_char_dash)
                 dashed = False
             else:
-                ascii[y][x] = line_char
+                write_char(ascii, x, y, line_char)
+        do_initial_char = True
         # increment coord
         x += xmod
         y += ymod
-        # write side char
-        if dashed:
-            ascii[y][x] = line_char_dash
-            dashed = False
-        else:
-            ascii[y][x] = line_char
+    # write final char
+    if do_final_char:
+        x, y = pt2
+        write_char(ascii, x, y, line_char)
     # write corner char
     if do_corner_char:
         x, y = pt2
-        ascii[y][x] = corner2
+        write_char(ascii, x, y, corner2)
 
 def serialise_box(ascii, g):
     l = len(g.pts)
@@ -113,9 +122,9 @@ def serialise_box(ascii, g):
         dir = get_direction(pt1, pt2)
         dir2 = get_direction(pt2, pt3)
         if dir == DIR_WEST or dir == DIR_EAST:
-            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), HORT, HORT_DASH, g.dashed)
+            fill_line(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), HORT, HORT_DASH, g.dashed)
         else:
-            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), VERT, VERT_DASH, g.dashed)
+            fill_line(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), VERT, VERT_DASH, g.dashed)
 
 def serialise_line(ascii, g):
     l = len(g.pts)
@@ -138,9 +147,9 @@ def serialise_line(ascii, g):
         if pt3:
             dir2 = get_direction(pt2, pt3)
         if dir == DIR_WEST or dir == DIR_EAST:
-            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), HORT, HORT_DASH, g.dashed, i == 0, i != l-2)
+            fill_line(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), HORT, HORT_DASH, g.dashed, i == 0, i != l-2, i == l-2)
         else:
-            fill_char(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), VERT, VERT_DASH, g.dashed, i == 0, i != l-2)
+            fill_line(ascii, dir, pt1, pt2, choose_corner(dir, dir2, curve), VERT, VERT_DASH, g.dashed, i == 0, i != l-2, i == l-2)
         # write line arrow heads
         if i == 0 and g.start_arrow:
             char = choose_arrow(dir)
@@ -166,7 +175,7 @@ def serialize(gaphs):
             max_y = y2
     # build base char canvas
     for i in range(int(max_y) / CHAR_Y):
-        line = [' '] * (int(max_x) / CHAR_X)
+        line = [BLANK] * (int(max_x) / CHAR_X)
         ascii.append(line)
     # overlay the canvas items
     for g in gaphs:
