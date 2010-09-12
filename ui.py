@@ -191,6 +191,16 @@ def load_canvas(canvas, text):
         elif isinstance(f, figure.Line):
             gaphs.Line(f, canvas)
 
+def item_factory(view, cls):
+    """
+    Simple canvas item factory.
+    """
+    def wrapper():
+        item = cls()
+        view.canvas.add(item)
+        return item
+    return wrapper            
+
 class UI:
 
     def destroy(self, widget, data=None):
@@ -209,9 +219,9 @@ class UI:
 
         # side bar
         vbox = gtk.VBox()
-        # save button
-        button = gtk.Button("open")
-        def click(widget):
+        # open button
+        button = gtk.Button("Open File")
+        def click_open(widget):
             chooser = gtk.FileChooserDialog(title=None, action=gtk.FILE_CHOOSER_ACTION_OPEN,
                         buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN,gtk.RESPONSE_OK))
             filter = gtk.FileFilter()
@@ -228,7 +238,28 @@ class UI:
                         gtk.main_iteration()
                 data = open(filename, 'r').read()
                 load_canvas(canvas, data)
-        button.connect("clicked", click)
+        button.connect("clicked", click_open)
+        vbox.pack_start(button, expand=False)
+        # add box button
+        button = gtk.Button("Add Box")
+        def click_add_box(widget):
+            view.tool.grab(gaphas.tool.PlacementTool(view, item_factory(view, gaphs.Box), gaphas.tool.HandleTool(), 1))
+        button.connect("clicked", click_add_box)
+        vbox.pack_start(button, expand=False)
+        # add line button
+        button = gtk.Button("Add Line")
+        def click_add_line(widget):
+            view.tool.grab(gaphas.tool.PlacementTool(view, item_factory(view, gaphs.Line), gaphas.tool.HandleTool(), 1))
+        button.connect("clicked", click_add_line)
+        vbox.pack_start(button, expand=False)
+        # add delete button
+        button = gtk.Button("Delete Selected")
+        def click_delete_selected(widget):
+            while view.selected_items:
+                for item in view.selected_items:
+                    canvas.remove(item)
+                    break
+        button.connect("clicked", click_delete_selected)
         vbox.pack_start(button, expand=False)
         # dashed checkbox
         cb_dashed = gtk.CheckButton("Dashed")

@@ -181,11 +181,16 @@ class Box(AsciiItem):
     closed_shape = True
     fill_area = (0, 0, 0.8, 0.07)
 
-    def __init__(self, box, canvas):
+    def __init__(self, box = None, canvas = None):
         super(Box, self).__init__()
-        self.positions = box.positions
-        self.curves = box.curves
-        self.dashed = box.dashed
+        if box:
+            self.positions = box.positions
+            self.curves = box.curves
+            self.dashed = box.dashed
+        else:
+            self.positions = [[0, 0], [1, 0], [1, 1], [0, 1]]
+            self.curves = [False] * 4
+            self.dashed = False
         # initialize geometry
         self.init_geometry()
         # initialize handles
@@ -193,7 +198,8 @@ class Box(AsciiItem):
         # init_geometry constraints
         self.init_constraints()
         # add to canvas
-        canvas.add(self)
+        if canvas:
+            canvas.add(self)
 
 
 class Line(AsciiItem):
@@ -201,13 +207,20 @@ class Line(AsciiItem):
     closed_shape = False
     fill_area = (0, 0.8, 0.8, 0.07)
 
-    def __init__(self, line, canvas):
+    def __init__(self, line = None, canvas = None):
         super(Line, self).__init__()
-        self.positions = line.positions
-        self.curves = line.curves
-        self.dashed = line.dashed
-        self.start_arrow = line.start_arrow
-        self.end_arrow = line.end_arrow
+        if line:
+            self.positions = line.positions
+            self.curves = line.curves
+            self.dashed = line.dashed
+            self.start_arrow = line.start_arrow
+            self.end_arrow = line.end_arrow
+        else:
+            self.positions = [[0, 0], [1, 0]]
+            self.curves = [False] * 2
+            self.dashed = False
+            self.start_arrow = False
+            self.end_arrow = False
         # initialize geometry
         self.init_geometry()
         # initialize handles
@@ -215,7 +228,8 @@ class Line(AsciiItem):
         # init_geometry constraints
         self.init_constraints()
         # add to canvas
-        canvas.add(self)
+        if canvas:
+            canvas.add(self)
 
     def direction_from_pts(self, pt1, pt2):
         if pt1[0] > pt2[0]:
