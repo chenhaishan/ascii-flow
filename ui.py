@@ -138,14 +138,12 @@ class SpecialItemHandleSelection(object):
         self.view = view
         
     def select(self):
-        print self.item.width
         global item_start_size
         global handle_start_pos
         item_start_size = (self.item.width, self.item.height)
         handle_start_pos = (self.handle.pos.x.value, self.handle.pos.y.value)
 
     def unselect(self):
-        print self.handle.pos
         global item_start_size
         global handle_start_pos
         if item_start_size[0] == self.item.width and item_start_size[1] == self.item.height and handle_start_pos[0] == self.handle.pos.x.value and handle_start_pos[1] == self.handle.pos.y.value:
