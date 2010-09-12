@@ -126,6 +126,45 @@ class SnapHandleInMotion(object):
     def glue(self, pos, distance=GLUE_DISTANCE):
         return None
 
+item_start_size = None
+handle_start_pos = None
+
+@gaphas.aspect.HandleSelection.when_type(gaphs.AsciiItem)
+class SpecialItemHandleSelection(object):
+
+    def __init__(self, item, handle, view):
+        self.item = item
+        self.handle = handle
+        self.view = view
+        
+    def select(self):
+        print self.item.width
+        global item_start_size
+        global handle_start_pos
+        item_start_size = (self.item.width, self.item.height)
+        handle_start_pos = (self.handle.pos.x.value, self.handle.pos.y.value)
+
+    def unselect(self):
+        print self.handle.pos
+        global item_start_size
+        global handle_start_pos
+        if item_start_size[0] == self.item.width and item_start_size[1] == self.item.height and handle_start_pos[0] == self.handle.pos.x.value and handle_start_pos[1] == self.handle.pos.y.value:
+            # toggle items curved (or arrow) state at this point
+            # start by finding the point index that corresponds to this handle
+            i = 0
+            for pt in self.item.pts:
+                pt = self.item.renderise(pt)
+                if pt[0] == self.handle.pos.x.value and pt[1] == self.handle.pos.y.value:
+                    # use the index to toggle the curved or start/stop arrow states
+                    if (i == 0 or i == len(self.item.pts)-1) and isinstance(self.item, gaphs.Line):
+                        if i == 0:
+                            self.item.start_arrow = not self.item.start_arrow
+                        else:
+                            self.item.end_arrow = not self.item.end_arrow
+                    else:
+                        self.item.curves[i] = not self.item.curves[i]
+                i += 1
+
 def create_painter_chain():
     chain = gaphas.painter.PainterChain()
     chain.append(GridPainter())
@@ -193,36 +232,6 @@ class UI:
                 load_canvas(canvas, data)
         button.connect("clicked", click)
         vbox.pack_start(button, expand=False)
-        # corner checkboxes
-        b = gtk.HBox()
-        cb_nw = gtk.CheckButton()
-        b.pack_start(cb_nw, expand=False)
-        cb_ne = gtk.CheckButton()
-        b.pack_start(cb_ne, expand=False)
-        vbox.pack_start(b, expand=False)
-        b = gtk.HBox()
-        cb_sw = gtk.CheckButton()
-        b.pack_start(cb_sw, expand=False)
-        cb_se = gtk.CheckButton()
-        b.pack_start(cb_se, expand=False)
-        vbox.pack_start(b, expand=False)
-        def cb_corner_toggled(cb):
-            items = view.selected_items
-            if items:
-                for b in items:
-                    if cb == cb_nw:
-                        b.curves[0] = cb.get_active()
-                    if cb == cb_ne:
-                        b.curves[1] = cb.get_active()
-                    if cb == cb_se:
-                        b.curves[2] = cb.get_active()
-                    if cb == cb_sw:
-                        b.curves[3] = cb.get_active()
-                view.queue_draw_refresh()
-        cb_nw.connect("toggled", cb_corner_toggled)
-        cb_ne.connect("toggled", cb_corner_toggled)
-        cb_sw.connect("toggled", cb_corner_toggled)
-        cb_se.connect("toggled", cb_corner_toggled)
         # dashed checkbox
         cb_dashed = gtk.CheckButton()
         vbox.pack_start(cb_dashed, expand=False)
@@ -247,17 +256,9 @@ class UI:
                 for b in items:
                     print b.positions
                 for b in items:
-                    cb_nw.set_active(b.curves[0])
-                    cb_ne.set_active(b.curves[1])
-                    cb_se.set_active(b.curves[2])
-                    cb_sw.set_active(b.curves[3])
                     cb_dashed.set_active(b.dashed)
                     break;
             else:
-                cb_nw.set_active(False)
-                cb_ne.set_active(False)
-                cb_se.set_active(False)
-                cb_sw.set_active(False)
                 cb_dashed.set_active(False)
         view.connect("selection-changed", selection_changed)
 
