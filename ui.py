@@ -231,7 +231,8 @@ class UI:
         button.connect("clicked", click)
         vbox.pack_start(button, expand=False)
         # dashed checkbox
-        cb_dashed = gtk.CheckButton()
+        cb_dashed = gtk.CheckButton("Dashed")
+        cb_dashed.hide()
         vbox.pack_start(cb_dashed, expand=False)
         def cb_dashed_toggled(cb):
             items = view.selected_items
@@ -256,8 +257,9 @@ class UI:
                 for b in items:
                     cb_dashed.set_active(b.dashed)
                     break;
+                cb_dashed.show()
             else:
-                cb_dashed.set_active(False)
+                cb_dashed.hide()
         view.connect("selection-changed", selection_changed)
 
         # ascii view
